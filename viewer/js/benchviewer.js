@@ -128,11 +128,11 @@ function BenchmarkViewer(ctor)
                     "samples": benchmark.samples,
 
                     "raw": new Data({
-                        "values": benchmark.raw,
+                        "raw": benchmark.raw,
                         "samples": benchmark.samples
                     }),
                     "baseline": new Data({
-                        "values": benchmark.baseline,
+                        "raw": benchmark.baseline,
                         "samples": benchmark.samples
                     })
                 });
@@ -584,7 +584,7 @@ function MicroSubPage(ctor)
         var div = $("<div>");
         div.addClass("graph");
 
-        var graph = new MicroBotplox({
+        var graph = new MicroBoxplot({
             "dataHistory": this.micros,
             "dataFunction": (function (data)
             {
@@ -612,7 +612,7 @@ function MicroSubPage(ctor)
         var div = $("<div>");
         div.addClass("graph");
 
-        var graph = new MicroBotplox({
+        var graph = new MicroBoxplot({
             "dataHistory": this.micros,
             "dataFunction": (function (data)
             {
@@ -665,6 +665,7 @@ function MicroSubPage(ctor)
         {
             RenderCorrectedBoxplot.call(this, tabs, this.micros);
             RenderCorrectedHistogram.call(this, tabs, this.micros);
+            RenderSamplePlot.call(this, tabs, this.micros);
         }
 
         tabs.RenderTo(element);
@@ -675,7 +676,7 @@ function MicroSubPage(ctor)
         var div = $("<div>");
         div.addClass("graph");
 
-        var graph = new MicroBotplox({
+        var graph = new MicroBoxplot({
             "dataHistory": dataHist,
             "dataFunction": (function (data)
             {
@@ -694,11 +695,26 @@ function MicroSubPage(ctor)
         div.addClass("graph");
 
         var graph = new DataHistogram({
-            "data": recent.corrected,
-            "width": recent.samples
+            "data": recent.corrected
         });
         graph.RenderTo(div);
         tabs.AddTab("Histogram", div);
+    }
+
+    var RenderSamplePlot = function (tabs, dataHist)
+    {
+        var recent = dataHist.recent;
+
+        var div = $("<div>");
+        div.addClass("graph");
+
+        var graph = new MicroSamplePlot({
+            "raw": recent.raw.raw,
+            "baseline": recent.baseline.raw
+        });
+
+        graph.RenderTo(div);
+        tabs.AddTab("Samples", div);
     }
 
     __ConstructObject(this, ctor);
@@ -975,7 +991,7 @@ function MicroBenchmark(ctor)
         if (this.completed === true)
         {
             this.corrected = new Data({
-                "values": jStat(this.raw.values).subtract(this.baseline.average)[0],
+                "raw": jStat(this.raw.values).subtract(this.baseline.average)[0],
                 "samples": this.samples
             });
         }
@@ -1012,12 +1028,14 @@ function Data(ctor)
     this.Q1 = 0.0;
     this.Q3 = 0.0;
 
+    this.raw = [];
     this.values = [];
     this.inliers = [];
     this.outliers = [];
 
     this.Data = function ()
     {
+        this.values = this.raw;
         this.values.sort(function (a, b) { return a - b; });
         this.Calculate();
     }
@@ -1242,7 +1260,7 @@ function Tab(ctor)
     __ConstructObject(this, ctor);
 }
 
-function MicroBotplox(ctor)
+function MicroBoxplot(ctor)
 {
     this.dataFunction = (function (dataHist) { });
     this.dataHistory = {};
@@ -1252,7 +1270,7 @@ function MicroBotplox(ctor)
     this.outliers = [];
     this.values = [];
 
-    this.MicroBotplox = function ()
+    this.MicroBoxplot = function ()
     {
         for (var i = 0, end = this.dataHistory.completed.length; i < end; ++i)
         {
@@ -1328,6 +1346,49 @@ function MicroBotplox(ctor)
                 }
             }]
 
+        });
+    }
+
+    __ConstructObject(this, ctor);
+}
+
+function MicroSamplePlot(ctor)
+{
+    this.raw = [];
+    this.baseline = [];
+
+    this.RenderTo = function (element)
+    {
+        element.highcharts({
+            chart: {
+                type: "column"
+            },
+            title: {
+                text: ""
+            },
+            xAxis: {
+                title: {
+                    text: "Sample No."
+                }
+            },
+            yAxis: {
+                title: {
+                    text: "Time (ms)"
+                }
+            },
+            plotOptions: {
+                column: {
+                    stacking: "normal"
+                }
+            },
+            series: [{
+                name: "Raw",
+                data: this.raw
+            },
+            {
+                name: "Baseline",
+                data: this.baseline
+            }]
         });
     }
 
