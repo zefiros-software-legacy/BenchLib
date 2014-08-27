@@ -154,6 +154,14 @@ body .container-fluid {
     max-width: 600px;
 }
 
+#main .inner-tab-pane .center {
+    text-align:center;
+}
+
+#main .inner-tab-pane .graph-pane {
+    margin: 15px;
+}
+
 .footer {
     position: absolute;
     width: 100%;

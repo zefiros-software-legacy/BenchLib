@@ -479,6 +479,8 @@ function MicroSubPage(ctor)
 
     this.micros = {};
 
+    this.hasCompleted = false;
+
     this.analysis = $("<div>");
     this.overview = $("<div>");
     this.corrected = $("<div>");
@@ -488,6 +490,8 @@ function MicroSubPage(ctor)
     this.MicroSubPage = function ()
     {
         this.SubPage();
+
+        this.hasCompleted = this.micros.completed.length > 0;
 
         AddSeries.call(this);
         AddData.call(this);
@@ -538,12 +542,12 @@ function MicroSubPage(ctor)
         table.SetTitle("Data");
         table.SetHeader(["Series", "Inliers", "Outliers"]);
 
-        for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+        if (this.hasCompleted)
         {
-            var micro = this.micros.completed[i];
-
-            if (micro.completed === true)
+            for (var i = 0, end = this.micros.completed.length; i < end; ++i)
             {
+                var micro = this.micros.completed[i];
+
                 var inlierHtml = Util.FixArray(micro.corrected.inliers).join(", ");
                 var wellInlier = $("<div>");
                 wellInlier.addClass("well well-sm");
@@ -558,13 +562,20 @@ function MicroSubPage(ctor)
                 table.AddRow([micro.GetSerie(), wellInlier, wellOutlier]);
             }
         }
+        else
+        {
+            table.AddRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
+        }
 
         table.RenderTo(this.overview);
     }
 
     var AddCorrected = function ()
     {
-        RenderCorrectedGraphs.call(this, this.corrected);
+        if (this.hasCompleted)
+        {
+            RenderCorrectedGraphs.call(this, this.corrected);
+        }
 
         var table = new Table();
 
@@ -581,18 +592,21 @@ function MicroSubPage(ctor)
     }
     var AddRaw = function ()
     {
-        var div = $("<div>");
-        div.addClass("graph");
+        if (this.hasCompleted)
+        {
+            var div = $("<div>");
+            div.addClass("graph");
 
-        var graph = new MicroBoxplot({
-            "dataHistory": this.micros,
-            "dataFunction": (function (data)
-            {
-                return data.raw;
-            })
-        });
-        graph.RenderTo(div);
-        this.raw.append(div);
+            var graph = new MicroBoxplot({
+                "dataHistory": this.micros,
+                "dataFunction": (function (data)
+                {
+                    return data.raw;
+                })
+            });
+            graph.RenderTo(div);
+            this.raw.append(div);
+        }
 
         var table = new Table();
 
@@ -609,18 +623,21 @@ function MicroSubPage(ctor)
 
     var AddBaseline = function ()
     {
-        var div = $("<div>");
-        div.addClass("graph");
+        if (this.hasCompleted)
+        {
+            var div = $("<div>");
+            div.addClass("graph");
 
-        var graph = new MicroBoxplot({
-            "dataHistory": this.micros,
-            "dataFunction": (function (data)
-            {
-                return data.baseline;
-            })
-        });
-        graph.RenderTo(div);
-        this.baseline.append(div);
+            var graph = new MicroBoxplot({
+                "dataHistory": this.micros,
+                "dataFunction": (function (data)
+                {
+                    return data.baseline;
+                })
+            });
+            graph.RenderTo(div);
+            this.baseline.append(div);
+        }
 
         var table = new Table();
 
@@ -637,12 +654,12 @@ function MicroSubPage(ctor)
 
     var ComposeRows = function (table, dataFunc)
     {
-        for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+        if (this.hasCompleted)
         {
-            var bench = this.micros.completed[i];
-
-            if (bench.completed === true)
+            for (var i = 0, end = this.micros.completed.length; i < end; ++i)
             {
+                var bench = this.micros.completed[i];
+
                 var data = dataFunc(bench);
                 var avg = data.sampleAverage.toFixed(Config.Precision);
                 var med = data.median.toFixed(Config.Precision);
@@ -652,6 +669,10 @@ function MicroSubPage(ctor)
                 table.AddRow([bench.GetSerie(), avg, med, sd, low, high]);
             }
         }
+        else
+        {
+            table.AddRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
+        }
     }
 
     var RenderCorrectedGraphs = function (element, dataFunc)
@@ -660,8 +681,9 @@ function MicroSubPage(ctor)
             "IDprefix": this.id + "--Corrected--Graphs",
             "vertical": true
         });
+        tabs.container.addClass("graph-pane");
 
-        if (this.micros.completed.length > 0)
+        if (this.hasCompleted)
         {
             RenderCorrectedBoxplot.call(this, tabs, this.micros);
             RenderCorrectedHistogram.call(this, tabs, this.micros);
@@ -689,31 +711,47 @@ function MicroSubPage(ctor)
 
     var RenderCorrectedHistogram = function (tabs, dataHist)
     {
-        var recent = dataHist.recent;
-
         var div = $("<div>");
         div.addClass("graph");
 
-        var graph = new DataHistogram({
-            "data": recent.corrected
-        });
-        graph.RenderTo(div);
+        var recent = dataHist.recent;
+        if (recent.completed)
+        {
+            var graph = new DataHistogram({
+                "data": recent.corrected
+            });
+            graph.RenderTo(div);
+        }
+        else
+        {
+            div.append("<h4>The most recent benchmark failed!</h4>");
+        }
+
         tabs.AddTab("Histogram", div);
     }
 
     var RenderSamplePlot = function (tabs, dataHist)
     {
-        var recent = dataHist.recent;
-
         var div = $("<div>");
         div.addClass("graph");
 
-        var graph = new MicroSamplePlot({
-            "raw": recent.raw.raw,
-            "baseline": recent.baseline.raw
-        });
+        var recent = dataHist.recent;
 
-        graph.RenderTo(div);
+        if (recent.completed)
+        {
+
+            var graph = new MicroSamplePlot({
+                "raw": recent.raw.raw,
+                "baseline": recent.baseline.raw
+            });
+
+            graph.RenderTo(div);
+        }
+        else
+        {
+            div.append("<h4>The most recent benchmark failed!</h4>");
+        }
+
         tabs.AddTab("Samples", div);
     }
 
@@ -1108,6 +1146,9 @@ function Data(ctor)
 
 function Table(ctor)
 {
+    this.columns = 0;
+    this.rows = 0;
+
     this.container = {};
     this.title = {};
     this.table = {};
@@ -1153,6 +1194,7 @@ function Table(ctor)
             th.html(titles[i]);
             this.tableHeader.append(th);
         }
+        this.columns = titles.length;
     }
 
     this.AddRow = function (data)
@@ -1166,6 +1208,21 @@ function Table(ctor)
             tr.append(td);
         }
         this.tableBody.append(tr);
+
+        ++this.rows;
+    }
+
+    this.AddRowspan = function (html)
+    {
+        var tr = $("<tr>");
+        var td = $("<td>");
+        td.attr("colspan", this.columns);
+        td.html(html);
+        tr.append(td);
+
+        this.tableBody.append(tr);
+
+        ++this.rows;
     }
 
     this.RenderTo = function (element)
