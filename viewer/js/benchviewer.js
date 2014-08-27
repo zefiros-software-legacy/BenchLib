@@ -1,720 +1,1600 @@
-function AddGroup( benchmarks, group )
+function BenchmarkViewer(ctor)
 {
-	if ( typeof benchmarks.groups[ group ] === "undefined" )
-	{
-		benchmarks.groupNames.push( group );
-		
-		benchmarks.groups[ group ] = {};
-		benchmarks.groups[ group ].micro = {};
-		benchmarks.groups[ group ].variant = {};
-		benchmarks.groups[ group ].advanced = {};
-	}
+    this.groups = new Map();
+    this.data = {};
+    this.latestTimestamp = "";
+
+    this.mainPageID = "--main";
+    this.subPages = new Map();
+
+    this.BenchmarkViewer = function ()
+    {
+        AddPages.call(this);
+        this.ParseData();
+    }
+
+    this.ParseData = function ()
+    {
+        for (var i = 0; i < this.data.length; ++i)
+        {
+            var current = this.data[i];
+
+            var timestamp = current.timestamp;
+
+            if (i == 0)
+            {
+                this.latestTimestamp = timestamp;
+            }
+
+            for (var j = 0; j < current.groups.length; ++j)
+            {
+                var group = current.groups[j];
+                if (this.groups.Has(group) !== true)
+                {
+                    this.groups.Set(group,
+                        new Group({
+                            "name": group
+                        }));
+                }
+            }
+
+            ParseMicroBenchmarks.call(this, current.micros, timestamp);
+        }
+
+        this.groups.Foreach((function (group)
+        {
+            group.micros.InitBenchmarks();
+        }))
+    }
+
+    this.Render = function ()
+    {
+        RenderMenu.call(this);
+        RenderPages.call(this);
+    }
+
+    var RenderPages = function ()
+    {
+        var main = $("<div>");
+        main.addClass("tab-content");
+
+        this.groups.Foreach(function (group)
+        {
+            var name = group.name;
+            var id = group.id;
+
+            RenderPage.call(this, group, name, id, main);
+        });
+        $("#main").append(main);
+    }
+
+    var RenderMenu = function ()
+    {
+        var pageUl = $("<ul>");
+        pageUl.addClass("nav nav-sidebar");
+
+        this.groups.Foreach(function (group)
+        {
+            var name = group.name;
+            var id = group.id;
+
+            RenderMenuGroup.call(this, group, name, id, pageUl);
+        });
+        $("#page-navigation").append(pageUl);
+    }
+
+    var ParseMicroBenchmarks = function (microBenchmarks, timestamp)
+    {
+        var failed = [];
+        var completed = [];
+
+        if (microBenchmarks.failed)
+        {
+
+            for (var i = 0; i < microBenchmarks.failed.length; ++i)
+            {
+                var benchmark = microBenchmarks.failed[i];
+                var groupName = benchmark.group;
+                var name = benchmark.name;
+
+                var micro = new MicroBenchmark({
+                    "group": groupName,
+                    "name": name,
+                    "completed": false,
+                    "timestamp": timestamp
+                });
+
+                var group = this.groups.Get(groupName);
+                group.micros.AddBenchmark(micro, name);
+            }
+        }
+
+        if (microBenchmarks.completed)
+        {
+            for (var i = 0; i < microBenchmarks.completed.length; ++i)
+            {
+                var benchmark = microBenchmarks.completed[i];
+
+                var groupName = benchmark.group;
+                var name = benchmark.name;
+
+                var micro = new MicroBenchmark({
+                    "group": groupName,
+                    "name": name,
+                    "completed": true,
+                    "timestamp": timestamp,
+
+                    "operations": benchmark.operations,
+                    "samples": benchmark.samples,
+
+                    "raw": new Data({
+                        "values": benchmark.raw,
+                        "samples": benchmark.samples
+                    }),
+                    "baseline": new Data({
+                        "values": benchmark.baseline,
+                        "samples": benchmark.samples
+                    })
+                });
+
+                var group = this.groups.Get(groupName);
+                group.micros.AddBenchmark(micro, name);
+            }
+        }
+    }
+
+    var AddPages = function ()
+    {
+        var type = Benchmarks.Type.Page;
+        var title = "Overview";
+
+        this.subPages.Set(title, new OverviewSubPage({
+            "id": Util.ComposeBenchIDFromPage(this.mainPageID, type, title),
+            "name": title
+        }));
+
+        this.groups.Set("Main", new Group({
+            "name": "Main",
+            "id": this.mainPageID,
+            "subPages": this.subPages
+        }));
+    }
+
+    var RenderMenuGroup = function (group, name, id, ul)
+    {
+        var group = new MenuGroup({
+            "group": group,
+            "element": ul,
+            "name": name,
+            "id": id
+        });
+        group.Render();
+    }
+
+    var RenderPage = function (group, name, id, ul)
+    {
+        var page = new Page({
+            "group": group,
+            "element": ul,
+            "name": name,
+            "id": id
+        });
+        page.Render();
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function AddMicroBenchmark( benchmarks, group, name, benchmark, completed, mode, date )
+function MenuGroup(ctor)
 {
-	if ( typeof benchmarks.groups[ group ].micro[ name ] === "undefined" )
-	{
-		benchmarks.groups[ group ].micro[ name ] = [];
-	}
-	
-	var micros = benchmarks.groups[ group ].micro[ name ];
-	var index = micros.length;
-	micros.push({
-			"benchmark" : benchmark,
-			"completed" : completed,
-			"mode" : mode,
-			"date" : date,
-			"index" : index,
-			"serie" : IndexToSeries( index )
-			});
+    this.group = {};
+    this.element = {};
+    this.name = "";
+    this.id = "#";
+
+    this.li = {};
+    this.link = {};
+    this.title = {};
+
+    this.subpagesContainer = {};
+    this.subpagesUl = {};
+
+    this.totalCount = 0;
+    this.successCount = 0;
+
+    this.Render = function ()
+    {
+        this.li = $("<li>");
+
+        AddPageLink.call(this);
+
+        RenderMenuSubpages.call(this);
+
+        AddCountBadge.call(this);
+
+        this.element.append(this.li);
+    }
+
+    var AddPageLink = function ()
+    {
+        AddLink.call(this);
+
+        AddTitle.call(this);
+
+        this.li.append(this.link);
+    }
+
+    var RenderMenuSubpages = function ()
+    {
+        this.subpagesContainer = $("<div>");
+        this.subpagesContainer.addClass("nav-sub-container");
+
+        this.subpagesUl = $("<ul>");
+        this.subpagesUl.addClass("nav nav-sub");
+        this.subpagesUl.attr("role", "tablist");
+
+        var obj = this;
+
+        this.group.subPages.Foreach((function (page, name)
+        {
+            var type = Benchmarks.Type.Page;
+            var subpage = new MenuSubpage({
+                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
+                "element": obj.subpagesUl,
+                "type": type,
+                "pageName": obj.name,
+                "name": name
+            });
+            subpage.Render();
+        }));
+
+        this.totalCount += this.group.micros.all.length;
+        this.successCount += this.group.micros.completed.length;
+
+        this.group.micros.all.forEach((function (benchHistory, index, array)
+        {
+            var lastCompleted = benchHistory.recent;
+            var name = lastCompleted.name;
+            var type = Benchmarks.Type.Micro;
+            var subpage = new MicroMenuSubpage({
+                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
+                "completed": lastCompleted.completed,
+                "element": obj.subpagesUl,
+                "type": type,
+                "pageName": obj.name,
+                "name": name
+            });
+            subpage.Render();
+        }));
+
+        this.subpagesContainer.append(this.subpagesUl);
+
+        this.li.append(this.subpagesContainer);
+    }
+
+    var AddLink = function ()
+    {
+        this.link = $("<a>");
+        this.link.addClass("left benchGroup");
+        this.link.attr("title", this.name);
+        this.link.attr("href", "#" + this.id);
+    }
+
+    var AddTitle = function ()
+    {
+        this.title = $("<div>");
+        this.title.addClass("sub-page-title");
+        this.title.html(this.name);
+
+        this.link.html(this.title);
+    }
+
+    var AddCountBadge = function ()
+    {
+        if (this.totalCount > 0)
+        {
+            var countBadge = $("<span>");
+            countBadge.addClass("badge pull-right");
+            countBadge.html(this.successCount + " / " + this.totalCount);
+
+            this.link.append(countBadge);
+        }
+    }
+
+    function MenuSubpage(ctor)
+    {
+        this.element = {};
+        this.type = "";
+        this.pageName = "";
+        this.name = "";
+        this.id = "#";
+
+        this.li = {};
+        this.link = {};
+        this.title = {};
+        this.labels = {};
+
+        this.Render = function ()
+        {
+            this.li = $("<li>");
+
+            this.AddSubPageLink();
+
+            this.AddLabels();
+
+            this.element.append(this.li);
+        }
+
+        this.AddSubPageLink = function ()
+        {
+            this.AddLink();
+
+            this.AddTitle();
+
+            this.li.append(this.link);
+        }
+
+        this.AddLink = function ()
+        {
+            this.link = $("<a>");
+            this.link.attr("title", this.name);
+            this.link.attr("href", "#" + this.id);
+        }
+
+        this.AddTitle = function ()
+        {
+            this.title = $("<div>");
+            this.title.addClass("sub-page-title");
+            this.title.html(this.name);
+
+            this.link.html(this.title);
+        }
+
+        this.AddLabels = function ()
+        {
+            this.labels = $("<div>");
+            this.labels.addClass("pull-right label-holder");
+            this.link.append(this.labels);
+        }
+
+        __ConstructObject(this, ctor);
+    }
+
+    function MicroMenuSubpage(ctor)
+    {
+        MenuSubpage.apply(this);
+
+        this.completed = false;
+
+        this.Render = function ()
+        {
+            this.li = $("<li>");
+
+            this.AddSubPageLink();
+
+            this.AddLabels();
+
+            this.labels.append(Label.Status(this.completed));
+
+            this.labels.append(Label.Benchmark(this.type));
+
+            this.element.append(this.li);
+        }
+
+        __ConstructObject(this, ctor);
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function ParseMicroBenchmarks( benchmarks, microBenchmarks, date, mode )
+function Page(ctor)
 {
-	for ( var i = 0; i < microBenchmarks.failed.length; ++i )
-	{
-		var benchmark = microBenchmarks.failed[i];
-		AddMicroBenchmark( benchmarks, benchmark.group, benchmark.name, null, false, mode, date );
-	}
-	
-	for ( var i = 0; i < microBenchmarks.completed.length; ++i )
-	{
-		var benchmark = microBenchmarks.completed[i];
-		
-		var micro = {}
-		micro.group = benchmark.group;
-		micro.name = benchmark.name;
-		micro.corrected = {
-				"average" : benchmark.corrected.average,
-				"standardDeviation" : benchmark.corrected.standardDeviation,
-				"variance" : benchmark.corrected.variance,
-				"low" : benchmark.corrected.low,
-				"high" : benchmark.corrected.high,
-				"values" : benchmark.corrected.values
-				};
-		micro.raw = {
-				"average" : benchmark.raw.average,
-				"standardDeviation" : benchmark.raw.standardDeviation,
-				"variance" : benchmark.raw.variance,
-				"low" : benchmark.raw.low,
-				"high" : benchmark.raw.high,
-				"values" : benchmark.raw.values
-				};
-		micro.baseline = {
-			"average" : benchmark.baseline.average,
-				"standardDeviation" : benchmark.baseline.standardDeviation,
-				"variance" : benchmark.baseline.variance,
-				"low" : benchmark.baseline.low,
-				"high" : benchmark.baseline.high,
-				"values" : benchmark.baseline.values
-			}
-			
-		AddMicroBenchmark( benchmarks, benchmark.group, benchmark.name, micro, true, mode, date );
-	}
-}
-	
-function RenderPages( benchmarks )
-{	
-	for (var i = 0, size = benchmarks.groupNames.length; i < size; ++i )
-	{
-		var group = benchmarks.groupNames[i];
-		
-		var groupDiv = $( "<div>" );
-		groupDiv.attr( "id", group );
-		
-		var groupHeader = $( "<h1>" );
-		groupHeader.html( group );
-		
-		groupDiv.append( groupHeader );
-	
-		RenderMicroBenchmarks( benchmarks, groupDiv, group );
-		
-		$( "#content" ).append( groupDiv );
-	}
-	
-	$( ".contentTabs" ).each(function(i) {
-		$(this).tabs({
-			activate: $( this ).data("activatePlotEvent")
-			});
-		});
-		
-	$( "#tabs" ).tabs({
-			activate: (function( event, ui ){
-				RerenderAllPlots();
-				})
-			});
+    this.group = {};
+    this.element = {};
+    this.name = "";
+    this.id = "#";
+
+    this.container = {};
+
+    this.Page = function ()
+    {
+        this.container = $("<div>");
+        this.container.addClass("tab-pane panel panel-default page");
+        this.container.attr("id", this.id);
+
+        var header = $("<h1>");
+        header.addClass("page-header");
+        header.html(this.name);
+
+        this.container.append(header);
+    }
+
+    this.Render = function ()
+    {
+        var obj = this;
+        this.group.subPages.Foreach((function (page, name)
+        {
+            page.RenderTo(obj.container);
+        }));
+
+        this.group.micros.all.forEach((function (microHistory)
+        {
+            var type = Benchmarks.Type.Micro;
+            var name = microHistory.recent.name;
+            var page = new MicroSubPage({
+                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
+                "type": type,
+                "micros": microHistory,
+                "name": name
+            });
+            page.RenderTo(obj.container);
+        }));
+
+        this.element.append(this.container);
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderMenu( benchmarks )
-{		
-	for (var i = 0, size = benchmarks.groupNames.length; i < size; ++i )
-	{
-		var group = benchmarks.groupNames[i];
-		
-		var nameUl = $( "<ul>" );
-		var nameCount = 0;
-		var succeedCount = 0;
-		
-		var microBenchmarks = GetMicroBenchmarks( benchmarks, group );
-		for ( var name in microBenchmarks )
-		{	
-			if ( microBenchmarks.hasOwnProperty( name ) )
-			{
-				var micros = microBenchmarks[ name ];
-				
-				var nameLi = $( "<li>" );
-				
-				var nameDiv = $( "<div>" )
-				nameDiv.addClass( "benchmarkName" );
-				
-				var indicator = $( "<span>" );
-				indicator.html( "&mu;" );
-				indicator.addClass( "benchmarkInd" );
-				indicator.attr( "title", "Micro benchmark" );
-				
-				nameDiv.append( indicator );
-				
-				var nameLink = $( "<a>" );
-				nameLink.html( name );
-				nameLink.addClass( "nameLink" );
-				nameLink.attr( "title", name );
-				nameLink.click( {id : "#" + group + name }, (function( event ){
-						$(document).scrollTop( $( event.data.id ).offset().top - 50 ); 
-					}));
-				
-				nameDiv.append( nameLink );
-
-				var hasCurrent = micros[0].date == benchmarks.currentDate;
-				if ( !hasCurrent )
-				{
-					var hasCurrentCircle = $( "<span>" );
-					hasCurrentCircle.addClass( "circle black" );
-					hasCurrentCircle.attr( "title", "No recent benchmark" );
-					nameDiv.append( hasCurrentCircle );
-				}
-				else
-				{
-					var hasCompleted = micros[0].completed;
-					
-					if ( hasCompleted )
-					{
-						++succeedCount;
-					}
-					
-					var colour = "green";
-					var tooltip = "Benchmark completed";
-					if ( !hasCompleted )
-					{
-						colour = "red";
-						tooltip = "Benchmark failed";
-					}
-					
-					var hasCompletedCircle = $( "<span>" );
-					hasCompletedCircle.addClass( "circle " + colour );
-					hasCompletedCircle.attr( "title", tooltip );
-					nameDiv.append( hasCompletedCircle );
-				}
-				
-				nameLi.append( nameDiv );
-				
-				nameUl.append( nameLi );
-				
-				++nameCount;
-			}
-		}
-		
-		var li = $( "<li>" );
-		
-		var link = $( "<a>" );
-		link.attr( "href", "#" + group );
-		
-		var groupContainer = $( "<div>" );
-		groupContainer.addClass( "groupContainer" );
-		
-		var a = $( "<a>" );
-		a.html( group );
-		a.addClass( "left benchGroup" );
-		a.attr( "title", group );
-		groupContainer.append( a );
-		
-		var benchCount = $( "<span>" );
-		benchCount.html( succeedCount + "/"  + nameCount );
-		benchCount.addClass( "right benchCount" );
-		
-		groupContainer.append( benchCount );
-		
-		link.append( groupContainer);
-		
-		if ( nameCount > 0)
-		{
-			link.append( nameUl );
-		}
-		
-		li.append( link );
-		
-		$( '#sideMenu>ul' ).append( li );
-	}
-	
-	$("#sideMenu .nameLink, #sideMenu .groupContainer p").dotdotdot({
-		wrap : 'letter'
-	});
-}
-
-function RenderTabbedInformation( id, headers, content )
+function SubPage(ctor)
 {
-	var contentTabs = $( "<div>" );
-	contentTabs.addClass( "contentTabs" );
-	
-	var tabUl = $( "<ul>" );
-	
-	for ( var i = 0; i < headers.length; ++i )
-	{
-		tabUl.append( "<li><a href='#" + id + headers[i] + "'>" + headers[i] + "</li>" );
-	}
-	contentTabs.append( tabUl );
-	
-	for ( var i = 0; i < headers.length; ++i )
-	{
-		var tabContent = content[i];
-		
-		var div = $( "<div>" );
-		div.attr( "id", id + headers[i] );
-		
-		if( Array.isArray( tabContent ) )
-		{
-			for ( var j = 0, contentSize = tabContent.length; j < contentSize; ++j )
-			{
-				div.append( tabContent[j] );
-			}
-		}
-		else
-		{
-			div.append( tabContent );
-		}
-		
-		contentTabs.append( div );
-	}
-	
-	return contentTabs;
+    this.type = "";
+    this.name = "";
+    this.id = "#";
+
+    this.container = {};
+
+    this.SubPage = function ()
+    {
+        this.container = $("<div>");
+        this.container.addClass("sub-page");
+        this.container.attr("id", this.id);
+
+        var header = $("<h2>");
+        header.addClass("sub-header");
+        header.append(Label.Benchmark(this.type));
+        header.append("\t" + this.name);
+
+        this.container.append(header);
+
+        this.container.append(this.AddContent(this.container));
+    }
+
+    this.RenderTo = function (element)
+    {
+        element.append(this.container);
+    }
+
+    this.AddContent = function (container)
+    {
+        return;
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-var plots = {};
-
-function AddPlot( plots, group )
+function MicroSubPage(ctor)
 {
-	if ( typeof plots[ group ] === "undefined" )
-	{
-		plots[ group ] = [];
-	}
+    SubPage.apply(this);
+
+    this.micros = {};
+
+    this.analysis = $("<div>");
+    this.overview = $("<div>");
+    this.corrected = $("<div>");
+    this.raw = $("<div>");
+    this.baseline = $("<div>");
+
+    this.MicroSubPage = function ()
+    {
+        this.SubPage();
+
+        AddSeries.call(this);
+        AddData.call(this);
+
+        AddCorrected.call(this);
+        AddRaw.call(this);
+        AddBaseline.call(this);
+    }
+
+    this.AddContent = function (container)
+    {
+        var tab = new Tab({
+            "IDprefix": this.id
+        });
+        tab.AddTab("Analysis", this.analysis);
+        tab.AddTab("Overview", this.overview);
+        tab.AddTab("Corrected", this.corrected);
+        tab.AddTab("Raw", this.raw);
+        tab.AddTab("Baseline", this.baseline);
+        tab.RenderTo(container);
+    }
+
+    var AddSeries = function ()
+    {
+        this.overview.append("<p><h3>Series</h3>To make the results more readable, we categorise each benchmark with a letter.</p>");
+
+        var table = new Table();
+
+        table.SetTitle("Series");
+        table.SetHeader(["Series", "Date", "Status"]);
+
+        for (var i = 0, end = this.micros.all.length; i < end; ++i)
+        {
+            var micro = this.micros.all[i];
+
+            table.AddRow([micro.GetSerie(), micro.timestamp, Label.Status(micro.completed)]);
+        }
+
+        table.RenderTo(this.overview);
+    }
+
+    var AddData = function ()
+    {
+        this.overview.append("<p><h3>Data</h3></p>");
+
+        var table = new Table();
+
+        table.SetTitle("Data");
+        table.SetHeader(["Series", "Inliers", "Outliers"]);
+
+        for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+        {
+            var micro = this.micros.completed[i];
+
+            if (micro.completed === true)
+            {
+                var inlierHtml = Util.FixArray(micro.corrected.inliers).join(", ");
+                var wellInlier = $("<div>");
+                wellInlier.addClass("well well-sm");
+                wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
+
+
+                var outlierHtml = Util.FixArray(micro.corrected.outliers).join(", ");
+                var wellOutlier = $("<div>");
+                wellOutlier.addClass("well well-sm");
+                wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
+
+                table.AddRow([micro.GetSerie(), wellInlier, wellOutlier]);
+            }
+        }
+
+        table.RenderTo(this.overview);
+    }
+
+    var AddCorrected = function ()
+    {
+        RenderCorrectedGraphs.call(this, this.corrected);
+
+        var table = new Table();
+
+        table.SetTitle("Corrected Measurements");
+        table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+        ComposeRows.call(this, table, (function (data)
+        {
+            return data.corrected;
+        }));
+
+        table.RenderTo(this.corrected);
+
+    }
+    var AddRaw = function ()
+    {
+        var div = $("<div>");
+        div.addClass("graph");
+
+        var graph = new MicroBotplox({
+            "dataHistory": this.micros,
+            "dataFunction": (function (data)
+            {
+                return data.raw;
+            })
+        });
+        graph.RenderTo(div);
+        this.raw.append(div);
+
+        var table = new Table();
+
+        table.SetTitle("Raw Measurements");
+        table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+        ComposeRows.call(this, table, (function (data)
+        {
+            return data.raw;
+        }));
+
+        table.RenderTo(this.raw);
+    }
+
+    var AddBaseline = function ()
+    {
+        var div = $("<div>");
+        div.addClass("graph");
+
+        var graph = new MicroBotplox({
+            "dataHistory": this.micros,
+            "dataFunction": (function (data)
+            {
+                return data.baseline;
+            })
+        });
+        graph.RenderTo(div);
+        this.baseline.append(div);
+
+        var table = new Table();
+
+        table.SetTitle("Baseline Measurements");
+        table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+        ComposeRows.call(this, table, (function (data)
+        {
+            return data.baseline;
+        }));
+
+        table.RenderTo(this.baseline);
+    }
+
+    var ComposeRows = function (table, dataFunc)
+    {
+        for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+        {
+            var bench = this.micros.completed[i];
+
+            if (bench.completed === true)
+            {
+                var data = dataFunc(bench);
+                var avg = data.sampleAverage.toFixed(Config.Precision);
+                var med = data.median.toFixed(Config.Precision);
+                var sd = data.sampleStandardDeviation.toFixed(Config.Precision);
+                var low = data.sampleLow.toFixed(Config.Precision);
+                var high = data.sampleHigh.toFixed(Config.Precision);
+                table.AddRow([bench.GetSerie(), avg, med, sd, low, high]);
+            }
+        }
+    }
+
+    var RenderCorrectedGraphs = function (element, dataFunc)
+    {
+        var tabs = new Tab({
+            "IDprefix": this.id + "--Corrected--Graphs",
+            "vertical": true
+        });
+
+        if (this.micros.completed.length > 0)
+        {
+            RenderCorrectedBoxplot.call(this, tabs, this.micros);
+            RenderCorrectedHistogram.call(this, tabs, this.micros);
+        }
+
+        tabs.RenderTo(element);
+    }
+
+    var RenderCorrectedBoxplot = function (tabs, dataHist)
+    {
+        var div = $("<div>");
+        div.addClass("graph");
+
+        var graph = new MicroBotplox({
+            "dataHistory": dataHist,
+            "dataFunction": (function (data)
+            {
+                return data.corrected;
+            })
+        });
+        graph.RenderTo(div);
+        tabs.AddTab("Boxplot", div);
+    }
+
+    var RenderCorrectedHistogram = function (tabs, dataHist)
+    {
+        var recent = dataHist.recent;
+
+        var div = $("<div>");
+        div.addClass("graph");
+
+        var graph = new DataHistogram({
+            "data": recent.corrected,
+            "width": recent.samples
+        });
+        graph.RenderTo(div);
+        tabs.AddTab("Histogram", div);
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-
-function RenderAllPlots()
+function OverviewSubPage(ctor)
 {
-	for( var group in plots )
-	{
-		if ( plots.hasOwnProperty( group ) )
-		{
-			var pagePlots = plots[ group ];
-			for ( var i = 0, size = pagePlots.length; i < size; ++i )
-			{
-				pagePlots[i].render();
-			}
-		}
-	}
+    SubPage.apply(this);
+
+    this.OverviewSubPage = function ()
+    {
+        this.name = "Overview";
+        this.SubPage();
+    }
+
+    this.AddContent = function (container)
+    {
+        return "\
+        <p>\
+        These pages will describe your benchmarks results benchmarks.\
+        We also try to help with automatically analysing the results,\
+        which will make your life easier.\
+        </p>\
+        <p>\
+        <h3>Explanation</h3> \
+        You will notice the symbols on the left of the benchmark name in the\
+        left side menu. These symbols indicate what kind of benchmark this particular case is.\
+        <p>\
+        <div class=\"panel panel-default\">\
+            <div class=\"panel-heading\">Benchmark Types</div>\
+            <table class=\"table table-striped\">\
+		    <tbody>\
+			    <tr>\
+				    <th>\
+					    Symbol\
+				    </th>\
+				    <th>\
+					    Meaning\
+				    </th>\
+			    </tr>\
+			    <tr>\
+				    <td>\
+					    <span class=\"label label-default\">&mu;</span>\
+				    </td>\
+				    <td>\
+					    Micro benchmark\
+				    </td>\
+			    </tr>\
+			    <tr>\
+				    <td>\
+				    <span class=\"label label-default\">V</span>\
+				    </td>\
+				    <td>\
+					    Variant benchmark\
+				    </td>\
+			    </tr>\
+			    <tr>\
+				    <td>\
+				    <span class=\"label label-default\">A</span>\
+				    </td>\
+				    <td>\
+					    Advanced benchmark\
+				    </td>\
+			    </tr>\
+		    </tbody>\
+	        </table>\
+        </div>\
+        </p>";
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RerenderAllPlots( group )
+function Group(ctor)
 {
-	for( var group in plots )
-	{
-		if ( plots.hasOwnProperty( group ) )
-		{
-			var pagePlots = plots[ group ];
-			for ( var i = 0, size = pagePlots.length; i < size; ++i )
-			{
-				var chart = pagePlots[i];
-				if ( typeof chart.__ReResized === "undefined" )
-				{
-					chart.resizeTo( 650, 450 );
-					chart.__ReResized = true;
-				}
-			}
-		}
-	}
+    this.name = "";
+    this.id = "";
+
+    this.subPages = new Map();
+    this.micros = new BenchmarkGroup();
+    this.variants = new BenchmarkGroup();
+    this.advanced = new BenchmarkGroup();
+
+    this.Group = function ()
+    {
+        if (this.id == "")
+        {
+            this.id = Util.ComposePageID(this.name);
+        }
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderMicroBenchmarkBoxplot( micros, type, title )
+function BenchmarkHistory(ctor)
 {
-	var categories = [];
-	
-	var datasets = [];
-	
-	var data = [];
-	for ( var i = 0, size = micros.length; i < size; ++i )
-	{
-		var micro = micros[i];
-		categories.push( { "label" : micro.serie } );
-		if ( micro.completed )
-		{
-			data.push( { "value" : micro.benchmark[ type ].values.join(",") } );
-		}
-		else
-		{
-			data.push( { "value" : "" } );
-		}
-	}
-	
-	datasets.push({
-			"seriesname": type,
-			"upperboxcolor": GetColourFromHSV( 210, 0.7, 0.9 ),
-			"lowerboxcolor": GetColourFromHSV( 210, 0.4, 0.9 ),
-			"data": data
-			});
-	
-	var chartDiv = $( "<div>" );
-	chartDiv.addClass( "chartContainer" );
-	
-	var chart = new FusionCharts({
-		type: "boxandwhisker2d",
-		renderAt: chartDiv.get( 0 ),
-		width: "650px",
-		height: "450px",
-		dataFormat: "json",
-		dataSource: {
-		"chart": {
-			"caption": title,
-			
-			"xAxisName" : "Series",
-			"yAxisName" : "Time (ms)",
-			
-			"animation" : "0",
-			"showAlternateHGridColor": "1",
-			"canvasBorderAlpha": "50",
-			"showvalues": "1",
-			"showShadow": "1",
-			"adjustDiv" : "1",
-			"numdivlines": "3",
-			"showborder": "1",
-			
-			"bgAlpha": "0",
-			"showBorder" : "1",
-			"borderAlpha": "10",
-			
-			"showAllOutliers" : "1",
-			"showSD" : "1",
-			
-			"meaniconcolor": "F66B27",
-			"meaniconsides": "16",
-			"meaniconradius": "3",
-			"showMean" : "1",
-			
-			"valueFontColor" : "000000",
-			"valueFontBold" : "1",
-			
-			"drawMeanConnector" : "1",
-			"drawSDConnector" : "1",
-			
-			"legendBorderAlpha": "10",
-			"legendShadow": "0",
-			"legendPosition": "right",
-			"exportEnabled": "1"
-		},
-		"categories": [
-			{
-				"category": categories
-			}
-		],
-		"dataset": datasets
-		}
-	});
-	
-	return { "chart" : chart, "div" : chartDiv};
+    this.all = [];
+    this.completed = [];
+    this.failed = [];
+
+    this.recent = {};
+
+    this.setIndex = false;
+    this.setCompletedFailed = false;
+
+    this.BenchmarkHistory = function ()
+    {
+        this.all.sort(BenchmarkSort);
+
+        if (this.setIndex)
+        {
+            this.all.forEach((function (element, index)
+            {
+                element.index = index;
+            }))
+        }
+
+        if (this.setCompletedFailed)
+        {
+            var obj = this;
+            this.all.forEach((function (bench, index, array)
+            {
+                if (bench.completed)
+                {
+                    obj.completed.push(bench);
+                }
+                else
+                {
+                    obj.failed.push(bench);
+                }
+            }));
+        }
+
+        this.recent = this.all[this.all.length - 1];
+    }
+
+    this.GetCategories = function ()
+    {
+        var categories = [];
+
+        this.all.forEach((function (element)
+        {
+            categories.push(element.GetSerie());
+        }))
+
+        return categories;
+    }
+
+    this.GetCompletedCategories = function ()
+    {
+        var categories = [];
+
+        this.completed.forEach((function (element)
+        {
+            categories.push(element.GetSerie());
+        }))
+
+        return categories;
+    }
+
+    var BenchmarkSort = function (a, b)
+    {
+        if (a.timestamp < b.timestamp)
+            return 1;
+        if (a.timestamp > b.timestamp)
+            return -1;
+        // a must be equal to b
+        return 0;
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderMicroBenchmarkAnalysisPlot( micros, rawType, baselineType, title )
+function BenchmarkGroup(ctor)
 {
-	var categories = [];
-	
-	var datasets = [];
-	
-	var baseLineData = [];
-	var totalData = [];
-	for ( var i = 0, size = micros.length; i < size; ++i )
-	{
-		var micro = micros[i];
-		categories.push( { "label" : micro.serie } );
-		
-		if ( micro.completed )
-		{
-			totalData.push({
-				"value" : micro.benchmark[ rawType ].average,
-				"errorvalue": micro.benchmark[ rawType ].standardDeviation,
-				});
-			baseLineData.push({
-				"value" : micro.benchmark[ baselineType ].average,
-				"errorvalue": micro.benchmark[ baselineType ].standardDeviation,
-				});
-		}
-		else
-		{
-			totalData.push({
-				"value" : "",
-				"errorvalue": "",
-				});
-			baseLineData.push({
-				"value" : "",
-				"errorvalue": "",
-				});
-		}
-	}
-	
-	datasets.push(
-			{
-			"seriesname": "Total",
-			"data": totalData
-			},
-			{
-			"seriesname": "Baseline",
-			"data": baseLineData
-			}
-		);
-	
-	var chartDiv = $( "<div>" );
-	chartDiv.addClass( "chartContainer" );
-	
-	var chart = new FusionCharts({
-		type: "errorbar2D",
-		renderAt: chartDiv.get( 0 ),
-		width: "650px",
-		height: "450px",
-		dataFormat: "json",
-		dataSource: {
-		"chart": {
-			"caption": title,
-			
-			"yAxisName" : "Time (ms)",
-			
-			"palettecolors" : "#"+GetColourFromHSV( 210, 0.9, 0.9 )+",#"+GetColourFromHSV( 85, 0.9, 0.9 ),
-			
-			"animation" : "0",
-			"showAlternateHGridColor": "1",
-			"useplotgradientcolor" : "0",
-			"canvasBorderAlpha": "50",
-			"showvalues": "1",
-			"showShadow": "1",
-			"adjustDiv" : "1",
-			"numdivlines": "3",
-			"showborder": "1",
-			
-			"bgAlpha": "0",
-			"showBorder" : "1",
-			"borderAlpha": "10",
+    this.all = [];
+    this.completed = [];
+    this.failed = [];
 
-			"halferrorbar" : "0",
-			
-			"errorbarcolor": "F66B27",
-			
-			"errorBarThickness" : "2",
-			"legendBorderAlpha": "10",
-			"legendShadow": "0",
-			"legendPosition": "right",
-			"exportEnabled": "1"
-		},
-		"categories": [
-			{
-				"category": categories
-			}
-		],
-		"dataset": datasets
-		}
-	});
-	
-	return { "chart" : chart, "div" : chartDiv};
+    this.buffer = new Map();
+
+    this.BenchmarkGroup = function ()
+    {
+    }
+
+    this.AddBenchmark = function (bench, name)
+    {
+        if (this.buffer.Has(name) === false)
+        {
+            this.buffer.Set(name, []);
+        }
+
+        this.buffer.Apply(name, (function (benchHistory)
+        {
+            benchHistory.push(bench);
+        }));
+    }
+
+    this.InitBenchmarks = function ()
+    {
+        var obj = this;
+        this.buffer.Foreach(function (benchHistory, name)
+        {
+            obj.all.push(new BenchmarkHistory({
+                "setCompletedFailed": true,
+                "all": benchHistory,
+                "setIndex": true
+            }));
+        });
+
+
+        this.all.forEach((function (benchHistory, index, array)
+        {
+            if (benchHistory.recent.completed)
+            {
+                obj.completed.push(benchHistory);
+            }
+            else
+            {
+                obj.failed.push(benchHistory);
+            }
+        }));
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function ConnectTabToPlotEvents( tab, plots )
+function Benchmark(ctor)
 {
-	tab.data( 
-		"activatePlotEvent", 
-		(function( event, ui ){
-				var index = ui.newTab.index();
-				var plot = plots[index];
-				var chart = plot.chart;
-				if ( typeof chart.ReResized === "undefined" )
-				{
-					chart.resizeTo( 650, 450 );
-					chart.ReResized = true;
-				}
-			})
-		);
+    this.name = "";
+    this.group = "";
+    this.completed = false;
+
+    this.operations = 0;
+    this.samples = 0;
+
+    this.timestamp = "";
+    this.index = 0;
+
+    this.GetSerie = function ()
+    {
+        return IndexToSeries.call(this, this.index);
+    }
+
+    this.GetType = function ()
+    {
+        return Benchmarks.Type.None;
+    }
+
+    var IndexToSeries = function (n)
+    {
+        var s = "";
+        while (n >= 0)
+        {
+            s = String.fromCharCode(n % 26 + 'A'.charCodeAt()) + s;
+            n = Math.floor(n / 26) - 1;
+        }
+        return s;
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderSeries( name, benchmarks )
+function MicroBenchmark(ctor)
 {
-	var rows = [];
-	for ( var i = 0, size = benchmarks.length; i < size; ++i )
-	{
-		var benchmark = benchmarks[i];
-		rows.push( [ benchmark.serie, benchmark.date ] );
-	}
-	
-	return RenderTable( "Series", ["Serie","Date"], rows );
+    Benchmark.apply(this);
+
+    this.raw = new Data();
+    this.baseline = new Data();
+    this.corrected = new Data();
+
+    this.MicroBenchmark = function ()
+    {
+        if (this.completed === true)
+        {
+            this.corrected = new Data({
+                "values": jStat(this.raw.values).subtract(this.baseline.average)[0],
+                "samples": this.samples
+            });
+        }
+    }
+
+    this.GetType = function ()
+    {
+        return Benchmarks.Type.Micro;
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderMicroBenchmarks( benchmarks, div, group )
+
+function Data(ctor)
 {
-	var microBenchmarks = GetMicroBenchmarks( benchmarks, group );
-	
-	if ( Object.keys( microBenchmarks ).length > 0 )
-	{
-		var typeHeader = $( "<h2>" );
-		typeHeader.html( "Micro Benchmarks" );
-		div.append( typeHeader );
-		
-		for ( var name in microBenchmarks )
-		{	
-			if ( microBenchmarks.hasOwnProperty( name ) )
-			{
-				var micros = microBenchmarks[ name ];
-				var id = group + name;
-				
-				var container = $( "<div>" );
-				container.attr( "id", id );
-				
-				var header = $( "<h3>" );
-				header.html( name );
-				container.append( header );
-				
-				var table = RenderSeries( name, micros );
-				
-				container.append( table );
-				
-				var analysisPlot = RenderMicroBenchmarkAnalysisPlot( micros, "raw", "baseline", name + " Results" );
-				var correctedPlot = RenderMicroBenchmarkBoxplot( micros, "corrected", name + " Results" );
-				var rawPlot = RenderMicroBenchmarkBoxplot( micros, "raw", name + " Results" );
-				var baselinePlot = RenderMicroBenchmarkBoxplot( micros, "baseline", name + " Results" );
-				
-				var tableTabs = RenderTabbedInformation( id,
-					[ "Analysis", "Corrected", "Raw", "Baseline"],
-					[
-						[ analysisPlot.div ],
-						[ correctedPlot.div, RenderMicroTable( name, micros, "corrected" ) ],
-						[ rawPlot.div, RenderMicroTable( "Raw " + name, micros, "raw" ) ],
-						[ baselinePlot.div, RenderMicroTable( "Baseline " + name, micros, "baseline" ) ]
-					]);
-					
-				AddPlot( plots, group );
-				
-				plots[group].push(analysisPlot.chart, correctedPlot.chart, rawPlot.chart, baselinePlot.chart );
-					
-				ConnectTabToPlotEvents( tableTabs, [analysisPlot, correctedPlot, rawPlot, baselinePlot] );
-				
-				container.append( tableTabs );
-				div.append( container );
-			}
-		}
-	}
+    this.average = 0.0;
+    this.standardDeviation = 0.0;
+    this.variance = 0.0;
+    this.low = 0.0;
+    this.high = 0.0;
+
+    this.samples = 0;
+
+    this.sampleAverage = 0.0;
+    this.sampleStandardDeviation = 0.0;
+    this.sampleVariance = 0.0;
+    this.sampleLow = 0.0;
+    this.sampleHigh = 0.0;
+    this.sampleLow = 0.0;
+    this.sampleHigh = 0.0;
+
+    this.median = 0.0;
+    this.Q1 = 0.0;
+    this.Q3 = 0.0;
+
+    this.values = [];
+    this.inliers = [];
+    this.outliers = [];
+
+    this.Data = function ()
+    {
+        this.values.sort(function (a, b) { return a - b; });
+        this.Calculate();
+    }
+
+    this.Calculate = function ()
+    {
+        if (this.values.length > 0)
+        {
+            var length = this.values.length;
+            var half = Math.floor(length / 2);
+            var quart = Math.floor(half / 2);
+            this.median = CalculateQ.call(this, this.values, half);
+            this.Q1 = CalculateQ.call(this, this.values, half - quart);
+            this.Q3 = CalculateQ.call(this, this.values, half + quart);
+
+            this.sampleAverage = jStat.mean(this.values);
+            this.sampleStandardDeviation = jStat.stdev(this.values);
+            this.sampleVariance = jStat.variance(this.values);
+            this.sampleLow = this.values[0];
+            this.sampleHigh = this.values[length - 1];
+
+            FilterData.call(this);
+        }
+    }
+
+    var FilterData = function ()
+    {
+        var IQR = this.Q3 - this.Q1;
+        var lower = this.Q1 - 1.5 * IQR;
+        var upper = this.Q3 + 1.5 * IQR;
+        for (var i = 0, end = this.values.length; i < end; ++i)
+        {
+            var value = this.values[i];
+            if (lower < value && value < upper)
+            {
+                this.inliers.unshift(value);
+            }
+            else
+            {
+                this.outliers.unshift(value);
+            }
+        }
+
+        var length = this.inliers.length;
+        if (length > 0)
+        {
+            this.average = jStat.mean(this.inliers);
+            this.standardDeviation = jStat.stdev(this.inliers);
+            this.variance = jStat.variance(this.inliers);
+            this.low = this.inliers[length - 1];
+            this.high = this.inliers[0]
+        }
+    }
+
+    var CalculateQ = function (array, place)
+    {
+        var length = array.length;
+        if (length % 2 !== 0)
+        {
+            return array[place];
+        }
+        else
+        {
+            return (array[place - 1] + array[place]) * 0.5;
+        }
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderMicroTable( name, micros, type )
+function Table(ctor)
 {
-	var rows = [];
-	for ( var i = 0, size = micros.length; i < size; ++i )
-	{
-		var micro = micros[i];
-		
-		if ( micro.completed )
-		{
-			var benchmark = micro.benchmark[ type ];
-			rows.push( [ micro.serie, benchmark.average, benchmark.standardDeviation, benchmark.low, benchmark.high, "C" ] );
-		}
-		else
-		{
-			rows.push( [ micro.serie, "-", "-", "-", "-", "F" ] );
-		}
-	}
-	
-	return RenderTable( name + " Results", ["Serie", "Average (ms)", "SD (ms)", "Low (ms)", "High (ms)", "Status"], rows );
+    this.container = {};
+    this.title = {};
+    this.table = {};
+    this.tableHeader = {};
+    this.tableBody = {};
+
+    this.Table = function ()
+    {
+        this.container = $("<div>");
+        this.container.addClass("panel panel-default");
+
+        this.title = $("<div>");
+        this.title.addClass("panel-heading");
+
+        this.table = $("<table>");
+        this.table.addClass("table table-striped");
+        this.table.attr("data-sortable", " ");
+
+        this.tableBody = $("<tbody>");
+
+        var thead = $("<thead>");
+        this.tableHeader = $("<tr>");
+
+        thead.append(this.tableHeader);
+
+        this.table.append(thead);
+        this.table.append(this.tableBody);
+
+        this.container.append(this.title);
+        this.container.append(this.table);
+    }
+
+    this.SetTitle = function (name)
+    {
+        this.title.html(name);
+    }
+
+    this.SetHeader = function (titles)
+    {
+        for (var i = 0, end = titles.length; i < end; ++i)
+        {
+            var th = $("<th>");
+            th.html(titles[i]);
+            this.tableHeader.append(th);
+        }
+    }
+
+    this.AddRow = function (data)
+    {
+        var tr = $("<tr>");
+        for (var i = 0, end = data.length; i < end; ++i)
+        {
+            var td = $("<td>");
+            td.html(data[i]);
+
+            tr.append(td);
+        }
+        this.tableBody.append(tr);
+    }
+
+    this.RenderTo = function (element)
+    {
+        element.append(this.container);
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function GetMicroBenchmarks( benchmarks, group )
+function Tab(ctor)
 {
-	if ( benchmarks.groups.hasOwnProperty( group ) )
-	{
-		return benchmarks.groups[ group ].micro;
-	}
-	
-	return null;
+    this.IDprefix = "";
+    this.class = "tab-me";
+    this.vertical = false;
+
+    this.size = 0;
+
+    this.container = {};
+    this.ul = {};
+    this.content = {};
+
+    this.Tab = function ()
+    {
+        this.container = $("<div>");
+
+        this.ul = $("<ul>");
+        this.ul.addClass("nav nav-tabs");
+        this.ul.attr("role", "tablist");
+
+        this.content = $("<div>");
+        this.content.addClass("tab-content");
+
+        if (this.vertical)
+        {
+            this.ul.addClass("tabs-left");
+
+            var tabDiv = $("<div>");
+            tabDiv.addClass("col-xs-2");
+            tabDiv.html(this.ul);
+
+            var contentDiv = $("<div>");
+            contentDiv.addClass("col-xs-10");
+            contentDiv.html(this.content);
+
+            this.container.addClass("container-fluid");
+
+            this.container.append(tabDiv);
+            this.container.append(contentDiv);
+        }
+        else
+        {
+            this.container.append(this.ul);
+            this.container.append(this.content);
+        }
+    }
+
+    this.AddTab = function (name, contents)
+    {
+        var first = this.size++ === 0;
+        var li = $("<li>");
+        var link = $("<a>");
+        link.attr("href", "#" + this.IDprefix + "--" + name);
+        link.addClass(this.class);
+
+        link.html(name);
+
+        li.append(link);
+
+        this.ul.append(li);
+
+        var pane = $("<div>");
+        pane.addClass("tab-pane inner-tab-pane");
+
+        pane.attr("id", this.IDprefix + "--" + name);
+        pane.append(contents);
+
+        if (first)
+        {
+            li.addClass("active");
+            pane.addClass("active");
+        }
+
+        this.content.append(pane);
+    }
+
+    this.RenderTo = function (element)
+    {
+        element.append(this.container);
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function RenderTable( name, headers, rows )
+function MicroBotplox(ctor)
 {
-	var table = $( "<table>" );
-	table.append( "<caption>" + name + "</caption><tbody>" );
+    this.dataFunction = (function (dataHist) { });
+    this.dataHistory = {};
 
-	var htr = $( "<tr>" )
-	for ( var i = 0, size = headers.length; i < size; ++i )
-	{
-		var th = $( "<th>" );
-		th.html( headers[i] );
-		htr.append( th );
-	}
-	
-	table.append( htr );
-	
-	for ( var i = 0, size = rows.length; i < size; ++i )
-	{
-		var tr = $( "<tr>" );
-		var row = rows[i];
-		
-		for ( var j = 0, sizeRow = row.length; j < sizeRow; ++j )
-		{			
-			var td = $( "<td>" );
-			td.html( row[j] );
-			tr.append( td );
-		}
-		table.append( tr );
-	}
-	table.append( "</tbody>" );
-	
-	return table;
+    this.averages = [];
+    this.standardDeviations = [];
+    this.outliers = [];
+    this.values = [];
+
+    this.MicroBotplox = function ()
+    {
+        for (var i = 0, end = this.dataHistory.completed.length; i < end; ++i)
+        {
+            var bench = this.dataHistory.completed[i];
+            var data = this.dataFunction(bench);
+
+            this.values.push(Util.RoundArray([data.low, data.Q1, data.median, data.Q3, data.high]));
+            this.standardDeviations.push([i, Util.Round(data.standardDeviation)]);
+            this.averages.push([i, Util.Round(data.average)]);
+
+            for (var j = 0, outlierEnd = data.outliers.length; j < outlierEnd; ++j)
+            {
+                var outlier = data.outliers[j];
+                this.outliers.push([i, Util.Round(outlier)]);
+            }
+        }
+    }
+
+    this.RenderTo = function (element)
+    {
+        element.highcharts({
+            chart: {
+                type: "boxplot"
+            },
+            title: {
+                text: ""
+            },
+            xAxis: {
+                categories: this.dataHistory.GetCompletedCategories(),
+                title: {
+                    text: "Series"
+                }
+            },
+            yAxis: {
+                title: {
+                    text: "Time (ms)"
+                }
+            },
+            series: [{
+                name: "Measurements",
+                data: this.values,
+                tooltip: {
+                    headerFormat: '<em>Series {point.key}</em><br/>'
+                }
+            },
+            {
+                name: "Outliers",
+                type: "scatter",
+                data: this.outliers,
+                marker: {
+                    fillColor: "white",
+                    lineWidth: 1,
+                    lineColor: Highcharts.getOptions().colors[0]
+                },
+                tooltip: {
+                    pointFormat: "Outlier: {point.y}"
+                }
+            },
+            {
+                name: "Standard Deviation",
+                type: "scatter",
+                data: this.standardDeviations,
+                tooltip: {
+                    pointFormat: "Standard Deviation: {point.y}"
+                }
+            },
+            {
+                name: "Average",
+                type: "scatter",
+                data: this.averages,
+                tooltip: {
+                    pointFormat: "Average: {point.y}"
+                }
+            }]
+
+        });
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function IndexToSeries( n )
+function DataHistogram(ctor)
 {
-	var s = "";
-	while(n >= 0)
-	{
-		s = String.fromCharCode(n % 26 + 'A'.charCodeAt()) + s;
-		n = Math.floor(n / 26) - 1;
-	}
-	return s;
+    this.data = {};
+
+    this.DataHistogram = function ()
+    {
+    }
+
+    this.RenderTo = function (element)
+    {
+        element.highcharts({
+            chart: {
+                type: "histogram"
+            },
+            title: {
+                text: "Recent Histogram"
+            },
+            legend: {
+                enabled: false
+            },
+            yAxis: {
+                title: {
+                    text: "Frequency"
+                }
+            },
+            xAxis: {
+                title: {
+                    text: "Time (ms)"
+                }
+            },
+            series: [{
+                name: "Frequency",
+                data: this.data.inliers
+            }]
+
+        });
+    }
+
+    var GetIndex = function (theta, low, x)
+    {
+        return Math.round(Math.floor((x - low) / theta));
+    }
+
+    __ConstructObject(this, ctor);
 }
 
-function ZipArrays( a, b )
+function Map()
 {
-	var result = [];
-	
-	for ( var i = 0, size = a.length; i < size; ++i )
-	{
-		result[i] = [ a[i], b[i] ];
-	}
-	
-	return result;
+    this.length = 0;
+    this.items = {};
+
+    this.Get = function (key)
+    {
+        if (this.Has(key) === true)
+        {
+            return this.items[key];
+        }
+        return null;
+    }
+
+    this.Array = function ()
+    {
+        var array = [];
+        this.Foreach((function (element)
+        {
+            array.push(element);
+        }));
+        return array;
+    }
+
+    this.Has = function (key)
+    {
+        return this.items.hasOwnProperty(key);
+    }
+
+    this.Set = function (key, value)
+    {
+        if (this.Has(key) !== true)
+        {
+            ++this.length;
+        }
+        this.items[key] = value;
+    }
+
+    this.Apply = function (key, func)
+    {
+        if (this.Has(key) === true)
+        {
+            func(this.Get(key));
+        }
+    }
+
+    this.Remove = function (key)
+    {
+        if (this.Has(key) === true)
+        {
+            --this.length;
+            delete this.items[key];
+        }
+    }
+
+    this.Clear = function ()
+    {
+        this.Foreach((function (item)
+        {
+            delete item;
+        }));
+        this.length = 0;
+    }
+
+    this.Foreach = function (func)
+    {
+        for (var item in this.items)
+        {
+            if (this.items.hasOwnProperty(item) === true)
+            {
+                func(this.items[item], item);
+            }
+        }
+    }
+
+    this.Size = function ()
+    {
+        return this.length;
+    }
 }
 
-function GetColourFromHSV( hue, saturation, value )
+var Config = {
+
+    Precision: 2
+
+}
+
+var Util = {
+
+    ComposePageID: function (page)
+    {
+        return page;
+    },
+
+    ComposeBenchID: function (page, type, subpage)
+    {
+        return page + "--" + type + "--" + subpage;
+    },
+
+    ComposeBenchIDFromPage: function (pageID, type, subpage)
+    {
+        return pageID + "--" + type + "--" + subpage;
+    },
+
+    FixArray: function (array)
+    {
+        return jStat.map(array, function (x)
+        {
+            return Util.Fix(x);
+        });
+    },
+
+    Fix: function (x)
+    {
+        return x.toFixed(Config.Precision);
+    },
+
+    RoundArray: function (array)
+    {
+        return jStat.map(array, function (x)
+        {
+            return Util.Round(x);
+        });
+
+    },
+
+    Round: function (x)
+    {
+        var decimals = Config.Precision;
+        return +(Math.round(x + "e+" + decimals) + "e-" + decimals);
+    },
+
+    FMod: function (x, mod)
+    {
+        return (x - Math.floor(x / mod) * mod).toPrecision(7);
+    }
+}
+
+var Benchmarks = {
+
+    Type: {
+        None: "None",
+        Page: "Page",
+        Micro: "Micro",
+    }
+}
+
+var Label = {
+
+    Type: {
+        Grey: "label label-default",
+        Blue: "label label-primary",
+        Green: "label label-success",
+        Aqua: "label label-info",
+        Orange: "label label-warning",
+        Red: "label label-danger"
+    },
+
+    Create: function (type, content)
+    {
+        var span = $("<span>");
+        span.addClass(type);
+        span.html(content);
+        return span;
+    },
+
+    Success: function ()
+    {
+        return Label.Create(Label.Type.Green, "C");
+    },
+
+    Failure: function ()
+    {
+        return Label.Create(Label.Type.Red, "F");
+    },
+
+    Status: function (completed)
+    {
+        return completed ? Label.Success() : Label.Failure();
+    },
+
+    Benchmark: function (benchType)
+    {
+        var content = "";
+        switch (benchType)
+        {
+            case (Benchmarks.Type.None):
+                break;
+            case (Benchmarks.Type.Page):
+                content = "P";
+                break;
+            case (Benchmarks.Type.Micro):
+                content = "&mu;"
+                break;
+        };
+        return Label.Create(Label.Type.Grey, content);
+    }
+}
+
+function __ConstructObject(object, ctor)
 {
-	hdiv60 = hue / 60.0;
-	h60smallestZ = Math.floor(hdiv60);
+    if (typeof ctor !== "undefined")
+    {
+        for (var prop in object)
+        {
+            if (object.hasOwnProperty(prop) && ctor.hasOwnProperty(prop))
+            {
+                object[prop] = ctor[prop];
+            }
+        }
+    }
 
-	hi = h60smallestZ % 6;
-
-	//Calculate the values needed to set the red, green and blue values
-	f = hdiv60 - h60smallestZ;
-	p = value * (1 - saturation);
-	q = value * (1 - f * saturation);
-	t = value * (1 - (1 - f) * saturation);
-
-	//Create the red, green and blue values
-	r = 0, g = 0, b = 0;
-
-	//Set the red, green and blue values
-	switch (hi)
-	{
-	case 0:
-		r = value; g = t; b = p;
-		break;
-	case 1:
-		r = q; g = value; b = p;
-		break;
-	case 2:
-		r = p; g = value; b = t;
-		break;
-	case 3:
-		r = p; g = q; b = value;
-		break;
-	case 4:
-		r = t; g = p; b = value;
-		break;
-	case 5:
-		r = value; g = p; b = q;
-		break;
-	}
-
-	//Translate red, green and blue values from [0,1] to [0,225]
-	r = r * 255;
-	g = g * 255;
-	b = b * 255;
-
-	return RGBToHex( r, g, b );
+    var name = object.constructor.name;
+    if (typeof object[name] === "function")
+    {
+        object[name].call(object);
+    }
 }
-
-function RGBToHex( r, g, b ) 
-{  
-	var rgb = 0x1000000 + (b | (g << 8) | (r << 16));
-	return rgb.toString(16).slice(1);
-}  
-	
