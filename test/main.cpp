@@ -25,22 +25,25 @@
 #include <chrono>
 #include <thread>
 
-BENCHMARK( Test, test1, 100 )
+MICRO( Test, test1, 2, true )
 {
+    new uint32_t[32];
+    new uint32_t[32];
+    delete[] new uint32_t[32];
     std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
 }
 
-BENCHMARK( Test, test2, 100 )
+MICRO( Test, test2, 2, true )
 {
     std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
 }
 
-BENCHMARK( Test, fail, 100 )
+MICRO( Test, fail, 2, true )
 {
     throw "";
 }
 
-int main( int argc, char **argv )
+int main( int argc, char *argv[] )
 {
 #ifdef _WIN32
 
@@ -51,7 +54,7 @@ int main( int argc, char **argv )
 
 #endif
 
-    int32_t result = BenchLib::RunAll();
+    int32_t result = BenchLib::RunAll( argc, argv );
 
     system( "pause" );
 

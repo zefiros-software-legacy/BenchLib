@@ -19,29 +19,50 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
-#ifndef __BENCHLIB__TIMER_H__
-#define __BENCHLIB__TIMER_H__
 
-#include <chrono>
+#pragma once
+#ifndef __BENCHLIB__CONFIG_H__
+#define __BENCHLIB__CONFIG_H__
+
+#include <string>
 
 namespace BenchLib
 {
-    typedef std::chrono::high_resolution_clock Clock;
-    typedef std::chrono::time_point<Clock> TimePoint;
-    typedef std::chrono::duration<double, std::milli> MilliSeconds;
 
-    template< typename tUnit = MilliSeconds>
-    struct Timer
-    { 
+#define BENCHLIB_MICRO_MAX_HISTORY 10
+#define BENCHLIB_VIEWER_VAR "benchmarkData"
 
-        static tUnit GetDuration( TimePoint start )
+    struct Config
+    {
+        std::size_t microMaxHistory;
+
+        std::string viewerVar;
+        std::string timestamp;
+
+        Config()
+            : microMaxHistory( BENCHLIB_MICRO_MAX_HISTORY )
         {
-            return std::chrono::duration_cast<tUnit>( Clock::now() - start );
         }
 
-    };
+    } gConfig;
 
+
+    template< typename tWriter >
+    void Serialise( Config &config, tWriter &writer )
+    {
+        writer.StartObject();
+
+        writer.String( "microMaxHistory" );
+        writer.Uint( config.microMaxHistory );
+
+        writer.EndObject();
+    }
+
+    template< typename tReader >
+    void Deserialise( Config &config, tReader &reader )
+    {
+        config.microMaxHistory = reader["microMaxHistory"].GetUint();
+    }
 }
 
 #endif

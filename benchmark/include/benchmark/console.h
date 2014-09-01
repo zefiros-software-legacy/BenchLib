@@ -21,75 +21,273 @@
  */
 
 #pragma once
-#ifndef __CONSOLE_H__
-#define __CONSOLE_H__
+#ifndef __BENCHLIB__CONSOLE_H__
+#define __BENCHLIB__CONSOLE_H__
 
+#include "benchmark/micro/microStat.h"
+
+#include <algorithm>
+#include <iostream>
 #include <stdint.h>
+#include <iomanip>
+#include <chrono>
 #include <vector>
 #include <string>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <stdio.h>
+
+static void SetColour( WORD colour )
+{
+    HANDLE handle = GetStdHandle( STD_OUTPUT_HANDLE );
+
+    if ( handle != INVALID_HANDLE_VALUE )
+    {
+        SetConsoleTextAttribute( handle, colour );
+    }
+}
+
+
+#else
+#include <iostream>
+#include <curses.h>
+#endif
 
 namespace BenchLib
 {
     namespace Console
     {
-        void Init( std::size_t testCount, std::size_t groupCount );
+        const std::size_t gPrecision = 2;
 
-        void GroupStart( const std::string &group, std::size_t groupSize );
+        inline void SetDefaultColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE );
+#else
+            std::cout << "\033[0m";
+#endif
+        }
 
-        void NormalStart( std::size_t groupSize );
+        inline void SetRedColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_RED | FOREGROUND_INTENSITY );
+#else
+            std::cout << "\033[0;31m";
+#endif
+        }
 
-        void Run( const std::string &group, const std::string &name );
+        inline void SetGreenColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_GREEN | FOREGROUND_INTENSITY );
+#else
+            std::cout << "\033[0;32m";
+#endif
+        }
 
-        void Stats( std::size_t samples, std::size_t operations );
+        inline void SetBlueColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_BLUE | FOREGROUND_INTENSITY );
+#else
+            std::cout << "\033[0;34m";
+#endif
+        }
 
-        void Baseline( double correction );
+        inline void SetCyanColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_BLUE | FOREGROUND_GREEN );
+#else
+            std::cout << "\033[0;36m";
+#endif
+        }
 
-        void Result( double avg, double sd, double low, double high );
+        inline void PrintHeader()
+        {
+            SetGreenColour();
+            std::cout << "[============] ";
+            SetDefaultColour();
+        }
 
-        void ResultCorrected( double avg, double sd, double low, double high, double baseline );
+        inline void PrintSubheader()
+        {
+            SetGreenColour();
+            std::cout << "[------------] ";
+            SetDefaultColour();
+        }
 
-        void Fail( const std::string &group, const std::string &name );
+        inline void PrintRun()
+        {
+            SetGreenColour();
+            std::cout << "[ RUN        ] ";
+            SetDefaultColour();
+        }
 
-        void Done( const std::string &group, const std::string &name, uint64_t benchTime, uint64_t baselineTime );
+        inline void PrintStats()
+        {
+            SetCyanColour();
+            std::cout << "[  STATS     ] ";
+            SetDefaultColour();
+        }
 
-        void GroupEnd( const std::string &group, std::size_t groupSize, uint64_t totalTime );
+        inline void PrintBaseline()
+        {
+            SetCyanColour();
+            std::cout << "[  BASELINE  ] ";
+            SetDefaultColour();
+        }
 
-        void End( std::size_t totalBenchmarks, std::size_t totalGroups, uint64_t totalTime,
-                  const std::vector< std::pair< std::string, std::string > > &failed );
+        inline void PrintResult()
+        {
+            SetGreenColour();
+            std::cout << "[   RESULT   ] ";
+            SetDefaultColour();
+        }
 
-        void PrintHeader();
+        inline void PrintResultCorrected()
+        {
+            SetGreenColour();
+            std::cout << "[   RESULT*  ] ";
+            SetDefaultColour();
+        }
 
-        void PrintSubheader();
+        inline void PrintDone()
+        {
+            SetGreenColour();
+            std::cout << "[       DONE ] ";
+            SetDefaultColour();
+        }
 
-        void PrintRun();
+        inline void PrintCompleted()
+        {
+            SetGreenColour();
+            std::cout << "[  COMPLETED ] ";
+            SetDefaultColour();
+        }
 
-        void PrintStats();
+        inline void PrintFail()
+        {
+            SetRedColour();
+            std::cout << "[   FAILED   ] ";
+            SetDefaultColour();
+        }
 
-        void PrintBaseline();
+        inline std::string GetBenchmarkAmount( std::size_t amount )
+        {
+            return std::to_string( amount ) + std::string( amount > 1 ? " benchmarks" : " benchmark" );
+        }
 
-        void PrintResult();
+        inline std::string GetGroupAmount( std::size_t amount )
+        {
+            return std::to_string( amount ) + std::string( amount > 1 ? " groups" : " group" );
+        }
 
-        void PrintResultCorrected();
+        inline void Init( std::size_t testCount, std::size_t groupCount )
+        {
+            PrintHeader();
+            std::cout << "Running " <<  GetBenchmarkAmount( testCount ) << " from " << GetGroupAmount(
+                          groupCount ) << "." << std::endl;
+        }
 
-        void PrintDone();
+        inline void GroupStart( const std::string &group, std::size_t groupSize )
+        {
+            PrintSubheader();
+            std::cout << GetBenchmarkAmount( groupSize ) << " from " << group << std::endl;
+        }
 
-        void PrintCompleted();
+        inline void BenchTypeStart( const std::string &benchType, std::size_t groupSize )
+        {
+            PrintHeader();
+            std::cout << std::endl;
 
-        void PrintFail();
+            PrintSubheader();
+            std::cout << benchType << " Benchmarks (" << groupSize << "):" << std::endl;
+        }
 
-        void SetDefaultColour();
+        inline void Run( const std::string &group, const std::string &name )
+        {
+            PrintRun();
+            std::cout << group << "." << name << std::endl;
+        }
 
-        void SetRedColour();
+        inline void Stats( std::size_t samples, std::size_t operations )
+        {
+            PrintStats();
+            std::cout << "Samples: " << samples << "\tOperations: " << operations << ";\tTimes in ms/operation." << std::endl;
+        }
 
-        void SetGreenColour();
+        inline void Baseline( double correction )
+        {
+            PrintBaseline();
+            std::cout << "Framework noise: " <<  std::fixed << std::setprecision( gPrecision ) << correction << std::endl;
+        }
 
-        void SetBlueColour();
+        template< typename tT >
+        inline void Result( MicroStat< tT > stats )
+        {
 
-        void SetCyanColour();
+            std::cout << "AVG: " << std::fixed << std::setprecision( gPrecision ) << stats.average <<
+                      "\tSD: " << std::fixed << std::setprecision( gPrecision ) << stats.standardDeviation <<
+                      "\tLOW: " << std::fixed << std::setprecision( gPrecision ) << stats.low  <<
+                      "\tHIGH: " << std::fixed << std::setprecision( gPrecision ) << stats.high <<
+                      std::endl;
+        }
 
-        std::string GetBenchmarkAmount( std::size_t amount );
+        inline void Fail( const std::string &group, const std::string &name )
+        {
+            PrintFail();
+            std::cout << group << "." << name << std::endl;
+        }
 
-        std::string GetGroupAmount( std::size_t amount );
+        inline void Done( const std::string &group, const std::string &name, double benchTime, double baselineTime )
+        {
+            PrintDone();
+            std::cout << group << "." << name << " (" << benchTime << " + " << baselineTime << "; " <<
+                      benchTime + baselineTime << " ms)" << std::endl;
+        }
+
+        inline void GroupEnd( const std::string &group, std::size_t groupSize, std::chrono::milliseconds totalTime )
+        {
+            PrintSubheader();
+            std::cout << GetBenchmarkAmount( groupSize ) << " from " << group << " (" << totalTime.count() << " ms total)\n" <<
+                      std::endl;
+        }
+
+        inline void End( std::size_t totalBenchmarks, std::size_t totalGroups, std::chrono::milliseconds totalTime,
+                         const std::vector< std::pair< std::string, std::string > > &failed )
+        {
+            PrintSubheader();
+            std::cout << "Global benchmark environment tear-down" << std::endl;
+
+            PrintHeader();
+            std::cout << GetBenchmarkAmount( totalBenchmarks ) << " from " << GetGroupAmount( totalGroups ) << " ran. (" <<
+                      totalTime.count() << " ms total)" << std::endl;
+
+            const std::size_t totalFailedBenchmarks = failed.size();
+
+            PrintCompleted();
+            std::cout << GetBenchmarkAmount( totalBenchmarks - totalFailedBenchmarks ) << "." << std::endl;
+
+            if ( totalFailedBenchmarks > 0 )
+            {
+                PrintFail();
+                std::cout << GetBenchmarkAmount( totalFailedBenchmarks ) << ", listed below:" << std::endl;
+
+                for ( auto it = failed.begin(), end = failed.end(); it != end; ++it )
+                {
+                    PrintFail();
+                    const std::pair< std::string, std::string > &bench = *it;
+                    std::cout << bench.first << "." << bench.second << std::endl;
+                }
+            }
+
+            std::cout << totalFailedBenchmarks << " FAILED " << ( ( totalFailedBenchmarks > 1 ) ? "BENCHMARKS" : "BENCHMARK" ) <<
+                      std::endl;
+        }
+
     }
 }
 

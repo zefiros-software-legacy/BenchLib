@@ -40,12 +40,16 @@ solution "benchmark"
 			
 	project "benchmark-test"
 		location(  root .. "test/" )
-		
-		links "benchmark"
-		
+				
 		kind "ConsoleApp"
 		flags "WinMain"
 		defines "GTEST_HAS_TR1_TUPLE=0"
+
+		debugargs { 
+			"-in ../viewer/data.js",
+			"-out ../viewer/data.js",
+			"-v"
+		}
 		
 		includedirs {
 			root .. "extern/gtest/include/",
@@ -74,30 +78,13 @@ solution "benchmark"
 			defines "PREFIX=X64R_"
 			
 	project "benchmark"
-		targetname "benchmark"	 
+		targetname "benchmark"
 		kind "StaticLib"
 		
-		links "Json-cpp"
-
 		includedirs {
-			root .. "extern/jsoncpp/include/",
 			root .. "benchmark/include/"
 			}	
 			
 		files { 
 			root .. "benchmark/include/**.h",
-			root .. "benchmark/src/**.cpp"
-			}
-			
-	project "Json-cpp"
-		targetname "Json-cpp"	 
-		kind "StaticLib"
-
-		includedirs {
-			root .. "extern/jsoncpp/include/"
-			}	
-			
-		files { 
-			root .. "extern/jsoncpp/src/lib_json/**.h",
-			root .. "extern/jsoncpp/src/lib_json/**.cpp"
 			}

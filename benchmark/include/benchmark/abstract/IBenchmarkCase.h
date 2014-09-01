@@ -20,29 +20,39 @@
  * THE SOFTWARE.
  */
 #pragma once
-#ifndef __IBENCHMARKCASE_H__
-#define __IBENCHMARKCASE_H__
+#ifndef __BENCHLIB__IBENCHMARKCASE_H__
+#define __BENCHLIB__IBENCHMARKCASE_H__
 
 #include <string>
 
 namespace BenchLib
 {
-    class BaselineAnalysis;
-    class Analysis;
 
     class IBenchmarkCase
     {
     public:
 
-        virtual void Start( Analysis &analysis ) = 0;
+        virtual void RunSamples() = 0;
 
-        virtual void Baseline( BaselineAnalysis &analysis ) = 0;
+        virtual void RunBaseline() = 0;
+
+        virtual double GetSampleDuration() const = 0;
+        virtual double GetBaselineDuration() const = 0;
+
+        virtual bool Analyse() = 0;
+
+        virtual bool IsProfileMemoryEnabled() const = 0;
 
         virtual std::string GetName() const = 0;
         virtual std::string GetGroup() const = 0;
 
-        virtual std::size_t GetSamples() const = 0;
-        virtual std::size_t GetOperations() const = 0;
+        virtual bool IsCompleted() const = 0;
+        virtual void SetCompleted( bool isCompleted ) = 0;
+
+        virtual std::size_t GetSampleCount() const = 0;
+        virtual std::size_t GetOperationCount() const = 0;
+
+        virtual bool IsShadow() const = 0;
 
         virtual void CalculateOperationCount() = 0;
     };

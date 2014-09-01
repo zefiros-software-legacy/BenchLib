@@ -11,3 +11,6 @@ build/
 *.user
 test/lib/
 *.orig
+benchmark/*.sln
+benchmark/*.suo
+benchmark/*.sdf

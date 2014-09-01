@@ -42,12 +42,19 @@
     <script src="js/highcharts-more.js"></script>
     <script src="js/highcharts-histogram.js"></script>
     <script src="js/modules/exporting.js"></script>
+    <script src="js/js-schema.min.js"></script>
+    <script src="js/schema.js"></script>
     <script src="js/benchviewer.js"></script>
     <script src="data.js"></script>
     <script type="text/javascript">
         $(function ()
         {
             var benchmarks = new BenchmarkViewer(benchmarkData);
+            if (SchemaFormat(benchmarks))
+            {
+                return;
+            }
+
             benchmarks.Render();
 
             $("body").scrollspy({ target: ".nav-sub-container" });

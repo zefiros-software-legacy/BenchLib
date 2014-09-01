@@ -832,6 +832,7 @@ function Group(ctor)
     this.id = "";
 
     this.subPages = new Map();
+
     this.micros = new BenchmarkGroup();
     this.variants = new BenchmarkGroup();
     this.advanced = new BenchmarkGroup();
