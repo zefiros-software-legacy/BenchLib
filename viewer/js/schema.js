@@ -20,8 +20,8 @@ var SchemaMicro = schema({
 });
 
 var SchemaMicroResultCompleted = schema({
-    "timeSamples": [SchemaMicroDataPartial, SchemaMicroDataPartialEmpty],
-    "timeBaseline": [SchemaMicroDataPartial, SchemaMicroDataPartialEmpty],
+    "timeSamples": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
+    "timeBaseline": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "?timeCorrected": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "operationCount": Number.min(0),
     "sampleCount": Number.min(0),
@@ -31,10 +31,10 @@ var SchemaMicroResultCompleted = schema({
 });
 
 var SchemaMicroResultCompletedMemory = schema({
-    "timeSamples": [SchemaMicroDataPartial, SchemaMicroDataPartialEmpty],
-    "timeBaseline": [SchemaMicroDataPartial, SchemaMicroDataPartialEmpty],
+    "timeSamples": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
+    "timeBaseline": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "?timeCorrected": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
-    "memorySamples": [SchemaMicroDataPartial, SchemaMicroDataPartialEmpty],
+    "memorySamples": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "?memoryLeaks": Array.of(SchemaMemoryLeak),
     "operationCount": Number.min(0),
     "sampleCount": Number.min(0),
@@ -82,15 +82,6 @@ var SchemaMicroDataCompleteAnalysedNoInliers = schema({
     "Q3": Number,
     "inliers": Array.of(0, Number),
     "outliers": Array.of(Number)
-});
-
-var SchemaMicroDataPartial = schema({
-    "sampleStats": SchemaMicroStat,
-    "samples": Array.of(2, Number.MAX_VALUE, Number)
-});
-
-var SchemaMicroDataPartialEmpty = schema({
-    "samples": Array.of(0, 1, Number)
 });
 
 var SchemaMicroStat = schema({

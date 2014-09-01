@@ -49,11 +49,14 @@
     <script type="text/javascript">
         $(function ()
         {
-            var benchmarks = new BenchmarkViewer(benchmarkData);
-            if (SchemaFormat(benchmarks))
+            if (!Schema(benchmarkData))
             {
                 return;
             }
+
+            var benchmarks = new BenchmarkViewer({
+                "data": benchmarkData
+            });
 
             benchmarks.Render();
 

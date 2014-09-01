@@ -119,7 +119,7 @@ body .container-fluid {
     text-overflow: ellipsis;
     line-height: 18px;
     height: 18px;
-    width: 75%;
+    width: 72%;
 }
 
 #main {
@@ -140,12 +140,12 @@ body .container-fluid {
 
 #main .page {
     margin-bottom: 30px;
-    padding: 30px 60px;
+    padding: 30px 2%;
 }
 
 #main .inner-tab-pane {
     margin-bottom: 5px;
-    padding: 15px 30px;
+    padding: 15px 2%;
 }
 
 #main .inner-tab-pane .graph {
@@ -159,7 +159,8 @@ body .container-fluid {
 }
 
 #main .inner-tab-pane .graph-pane {
-    margin: 15px;
+    margin: 10px 0px;
+	padding: 10px 0px;
 }
 
 .footer {

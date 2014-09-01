@@ -35,7 +35,7 @@ namespace BenchLib
 #pragma warning(push)
 #pragma warning(disable: 4127)
 
-    template< typename tDataType, bool tCalculatePercentiles = true >
+    template< typename tDataType >
     class MicroData
     {
     public:
@@ -61,7 +61,7 @@ namespace BenchLib
 
             writer.EndArray();
 
-            if ( tCalculatePercentiles && IsValid() )
+            if ( IsValid() )
             {
                 writer.String( "median" );
                 writer.Double( static_cast< double >( mMedian ) );
@@ -72,7 +72,7 @@ namespace BenchLib
                 writer.String( "Q3" );
                 writer.Double( static_cast< double >( mQ3 ) );
 
-                if ( ! mInliers.empty() )
+                if ( mInliers.size() > 1 )
                 {
                     writer.String( "inlierStats" );
                     ::BenchLib::Serialise( mInlierStats, writer );
@@ -126,7 +126,7 @@ namespace BenchLib
                 }
             }
 
-            if ( tCalculatePercentiles && validSize )
+            if ( validSize )
             {
                 if ( !reader.HasMember( "inliers" ) || !reader.HasMember( "outliers" ) )
                 {
@@ -152,7 +152,7 @@ namespace BenchLib
                         mInliers.push_back( static_cast< tDataType>( it->GetDouble() ) );
                     }
 
-                    if ( !mInliers.empty() )
+                    if ( mInliers.size() > 1 )
                     {
                         ::BenchLib::Deserialise( mInlierStats, reader["inlierStats"] );
                     }
@@ -173,13 +173,8 @@ namespace BenchLib
         void SetSamples( const std::vector< tDataType > &samples )
         {
             mSamples = samples;
-
-            if ( tCalculatePercentiles )
-            {
-                CalculatePercentileStats();
-            }
-
             CalculateSampleStats();
+            CalculatePercentileStats();
         }
 
         MicroStat< tDataType > GetInlierStats() const
@@ -217,11 +212,6 @@ namespace BenchLib
             return mSamples;
         }
 
-        const std::vector< tDataType > &GetSortedSamples() const
-        {
-            return mSortedSamples;
-        }
-
         const std::vector< tDataType > &GetInliers() const
         {
             return mInliers;
@@ -245,8 +235,13 @@ namespace BenchLib
         tDataType mQ1;
         tDataType mQ3;
 
-        void CalculatePercentileStats( )
+        void CalculatePercentileStats()
         {
+            if (!IsValid())
+            {
+                return;
+            }
+
             std::vector< tDataType > sortedSamples( mSamples );
             std::sort( sortedSamples.begin(), sortedSamples.end() );
 
@@ -275,7 +270,7 @@ namespace BenchLib
                 }
             }
 
-            if ( !mInliers.empty() )
+            if ( mInliers.size() > 1 )
             {
                 Statistics< tDataType > stats( mInliers );
                 mInlierStats.average = stats.GetMean();

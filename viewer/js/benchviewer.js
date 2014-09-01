@@ -10,40 +10,23 @@ function BenchmarkViewer(ctor)
     this.BenchmarkViewer = function ()
     {
         AddPages.call(this);
-        this.ParseData();
+        this.Deserialise(this.data, true);
     }
 
-    this.ParseData = function ()
+    this.Deserialise = function (obj, hasCurrent)
     {
-        for (var i = 0; i < this.data.length; ++i)
+        Config.Deserialise(obj.config, hasCurrent);
+        var self = this;
+        obj.groups.forEach((function (element)
         {
-            var current = this.data[i];
+            var name = element.name;
 
-            var timestamp = current.timestamp;
-
-            if (i == 0)
+            if (self.groups.Has(name) !== true)
             {
-                this.latestTimestamp = timestamp;
+                var group = new Group();
+                self.groups.Set(name, group);
+                group.Deserialise(element, hasCurrent);
             }
-
-            for (var j = 0; j < current.groups.length; ++j)
-            {
-                var group = current.groups[j];
-                if (this.groups.Has(group) !== true)
-                {
-                    this.groups.Set(group,
-                        new Group({
-                            "name": group
-                        }));
-                }
-            }
-
-            ParseMicroBenchmarks.call(this, current.micros, timestamp);
-        }
-
-        this.groups.Foreach((function (group)
-        {
-            group.micros.InitBenchmarks();
         }))
     }
 
@@ -58,12 +41,13 @@ function BenchmarkViewer(ctor)
         var main = $("<div>");
         main.addClass("tab-content");
 
-        this.groups.Foreach(function (group)
+        this.groups.Foreach(function (group, name)
         {
-            var name = group.name;
-            var id = group.id;
-
-            RenderPage.call(this, group, name, id, main);
+            var page = new Page({
+                "group": group,
+                "name": name
+            });
+            page.RenderTo(main);
         });
         $("#main").append(main);
     }
@@ -73,113 +57,30 @@ function BenchmarkViewer(ctor)
         var pageUl = $("<ul>");
         pageUl.addClass("nav nav-sidebar");
 
-        this.groups.Foreach(function (group)
+        this.groups.Foreach(function (group, name)
         {
-            var name = group.name;
-            var id = group.id;
-
-            RenderMenuGroup.call(this, group, name, id, pageUl);
+            var group = new MenuGroup({
+                "group": group,
+                "name": name
+            });
+            group.RenderTo(pageUl);
         });
+
         $("#page-navigation").append(pageUl);
-    }
-
-    var ParseMicroBenchmarks = function (microBenchmarks, timestamp)
-    {
-        var failed = [];
-        var completed = [];
-
-        if (microBenchmarks.failed)
-        {
-
-            for (var i = 0; i < microBenchmarks.failed.length; ++i)
-            {
-                var benchmark = microBenchmarks.failed[i];
-                var groupName = benchmark.group;
-                var name = benchmark.name;
-
-                var micro = new MicroBenchmark({
-                    "group": groupName,
-                    "name": name,
-                    "completed": false,
-                    "timestamp": timestamp
-                });
-
-                var group = this.groups.Get(groupName);
-                group.micros.AddBenchmark(micro, name);
-            }
-        }
-
-        if (microBenchmarks.completed)
-        {
-            for (var i = 0; i < microBenchmarks.completed.length; ++i)
-            {
-                var benchmark = microBenchmarks.completed[i];
-
-                var groupName = benchmark.group;
-                var name = benchmark.name;
-
-                var micro = new MicroBenchmark({
-                    "group": groupName,
-                    "name": name,
-                    "completed": true,
-                    "timestamp": timestamp,
-
-                    "operations": benchmark.operations,
-                    "samples": benchmark.samples,
-
-                    "raw": new Data({
-                        "raw": benchmark.raw,
-                        "samples": benchmark.samples
-                    }),
-                    "baseline": new Data({
-                        "raw": benchmark.baseline,
-                        "samples": benchmark.samples
-                    })
-                });
-
-                var group = this.groups.Get(groupName);
-                group.micros.AddBenchmark(micro, name);
-            }
-        }
     }
 
     var AddPages = function ()
     {
-        var type = Benchmarks.Type.Page;
         var title = "Overview";
 
         this.subPages.Set(title, new OverviewSubPage({
-            "id": Util.ComposeBenchIDFromPage(this.mainPageID, type, title),
             "name": title
         }));
 
         this.groups.Set("Main", new Group({
             "name": "Main",
-            "id": this.mainPageID,
             "subPages": this.subPages
         }));
-    }
-
-    var RenderMenuGroup = function (group, name, id, ul)
-    {
-        var group = new MenuGroup({
-            "group": group,
-            "element": ul,
-            "name": name,
-            "id": id
-        });
-        group.Render();
-    }
-
-    var RenderPage = function (group, name, id, ul)
-    {
-        var page = new Page({
-            "group": group,
-            "element": ul,
-            "name": name,
-            "id": id
-        });
-        page.Render();
     }
 
     __ConstructObject(this, ctor);
@@ -188,7 +89,6 @@ function BenchmarkViewer(ctor)
 function MenuGroup(ctor)
 {
     this.group = {};
-    this.element = {};
     this.name = "";
     this.id = "#";
 
@@ -199,10 +99,12 @@ function MenuGroup(ctor)
     this.subpagesContainer = {};
     this.subpagesUl = {};
 
-    this.totalCount = 0;
-    this.successCount = 0;
+    this.MenuGroup = function ()
+    {
+        this.id = Util.ComposePageID(this.name);
+    }
 
-    this.Render = function ()
+    this.RenderTo = function (element)
     {
         this.li = $("<li>");
 
@@ -212,7 +114,7 @@ function MenuGroup(ctor)
 
         AddCountBadge.call(this);
 
-        this.element.append(this.li);
+        element.append(this.li);
     }
 
     var AddPageLink = function ()
@@ -233,39 +135,30 @@ function MenuGroup(ctor)
         this.subpagesUl.addClass("nav nav-sub");
         this.subpagesUl.attr("role", "tablist");
 
-        var obj = this;
+        var self = this;
 
         this.group.subPages.Foreach((function (page, name)
         {
             var type = Benchmarks.Type.Page;
             var subpage = new MenuSubpage({
-                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
-                "element": obj.subpagesUl,
-                "type": type,
-                "pageName": obj.name,
+                "id": Util.ComposeBenchIDFromPage(self.id, type, name),
                 "name": name
             });
-            subpage.Render();
+            subpage.RenderTo(self.subpagesUl);
         }));
 
-        this.totalCount += this.group.micros.all.length;
-        this.successCount += this.group.micros.completed.length;
-
-        this.group.micros.all.forEach((function (benchHistory, index, array)
+        this.group.micros.all.Foreach((function (benchmark, name)
         {
-            var lastCompleted = benchHistory.recent;
-            var name = lastCompleted.name;
-            var type = Benchmarks.Type.Micro;
+            var current = benchmark.current;
+
             var subpage = new MicroMenuSubpage({
-                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
-                "completed": lastCompleted.completed,
-                "element": obj.subpagesUl,
-                "type": type,
-                "pageName": obj.name,
+                "id": Util.ComposeBenchIDFromPage(self.id, benchmark.GetType(), name),
+                "completed": current.completed,
                 "name": name
             });
-            subpage.Render();
+            subpage.RenderTo(self.subpagesUl);
         }));
+
 
         this.subpagesContainer.append(this.subpagesUl);
 
@@ -295,7 +188,7 @@ function MenuGroup(ctor)
         {
             var countBadge = $("<span>");
             countBadge.addClass("badge pull-right");
-            countBadge.html(this.successCount + " / " + this.totalCount);
+            countBadge.html(this.successCount + " / " + this.group.GetCount());
 
             this.link.append(countBadge);
         }
@@ -303,10 +196,8 @@ function MenuGroup(ctor)
 
     function MenuSubpage(ctor)
     {
-        this.element = {};
-        this.type = "";
-        this.pageName = "";
         this.name = "";
+
         this.id = "#";
 
         this.li = {};
@@ -314,7 +205,7 @@ function MenuGroup(ctor)
         this.title = {};
         this.labels = {};
 
-        this.Render = function ()
+        this.RenderTo = function (element)
         {
             this.li = $("<li>");
 
@@ -322,7 +213,7 @@ function MenuGroup(ctor)
 
             this.AddLabels();
 
-            this.element.append(this.li);
+            element.append(this.li);
         }
 
         this.AddSubPageLink = function ()
@@ -366,7 +257,7 @@ function MenuGroup(ctor)
 
         this.completed = false;
 
-        this.Render = function ()
+        this.RenderTo = function (element)
         {
             this.li = $("<li>");
 
@@ -376,9 +267,9 @@ function MenuGroup(ctor)
 
             this.labels.append(Label.Status(this.completed));
 
-            this.labels.append(Label.Benchmark(this.type));
+            this.labels.append(Label.Benchmark(Benchmarks.Type.Micro));
 
-            this.element.append(this.li);
+            element.append(this.li);
         }
 
         __ConstructObject(this, ctor);
@@ -390,7 +281,6 @@ function MenuGroup(ctor)
 function Page(ctor)
 {
     this.group = {};
-    this.element = {};
     this.name = "";
     this.id = "#";
 
@@ -398,6 +288,8 @@ function Page(ctor)
 
     this.Page = function ()
     {
+        this.id = Util.ComposePageID(this.name);
+
         this.container = $("<div>");
         this.container.addClass("tab-pane panel panel-default page");
         this.container.attr("id", this.id);
@@ -409,28 +301,29 @@ function Page(ctor)
         this.container.append(header);
     }
 
-    this.Render = function ()
+    this.RenderTo = function (element)
     {
-        var obj = this;
+        var self = this;
         this.group.subPages.Foreach((function (page, name)
         {
-            page.RenderTo(obj.container);
+            var type = Benchmarks.Type.Page;
+            page.id = Util.ComposeBenchIDFromPage(self.id, type, name);
+            page.RenderTo(self.container);
         }));
 
-        this.group.micros.all.forEach((function (microHistory)
+
+        this.group.micros.all.Foreach((function (benchmark, name)
         {
-            var type = Benchmarks.Type.Micro;
-            var name = microHistory.recent.name;
+            var type = benchmark.GetType();
             var page = new MicroSubPage({
-                "id": Util.ComposeBenchIDFromPage(obj.id, type, name),
-                "type": type,
-                "micros": microHistory,
+                "id": Util.ComposeBenchIDFromPage(self.id, type, name),
+                "benchmark": benchmark,
                 "name": name
             });
-            page.RenderTo(obj.container);
+            page.RenderTo(self.container);
         }));
 
-        this.element.append(this.container);
+        element.append(this.container);
     }
 
     __ConstructObject(this, ctor);
@@ -438,8 +331,8 @@ function Page(ctor)
 
 function SubPage(ctor)
 {
-    this.type = "";
     this.name = "";
+
     this.id = "#";
 
     this.container = {};
@@ -448,11 +341,10 @@ function SubPage(ctor)
     {
         this.container = $("<div>");
         this.container.addClass("sub-page");
-        this.container.attr("id", this.id);
 
         var header = $("<h2>");
         header.addClass("sub-header");
-        header.append(Label.Benchmark(this.type));
+        header.append(Label.Benchmark(this.GetType()));
         header.append("\t" + this.name);
 
         this.container.append(header);
@@ -460,8 +352,15 @@ function SubPage(ctor)
         this.container.append(this.AddContent(this.container));
     }
 
+    this.GetType = function ()
+    {
+        return Benchmarks.Type.Page;
+    }
+
     this.RenderTo = function (element)
     {
+        this.container.attr("id", this.id);
+
         element.append(this.container);
     }
 
@@ -477,7 +376,7 @@ function MicroSubPage(ctor)
 {
     SubPage.apply(this);
 
-    this.micros = {};
+    this.benchmark = {};
 
     this.hasCompleted = false;
 
@@ -486,12 +385,15 @@ function MicroSubPage(ctor)
     this.corrected = $("<div>");
     this.raw = $("<div>");
     this.baseline = $("<div>");
+    this.memory = $("<div>");
 
     this.MicroSubPage = function ()
     {
         this.SubPage();
 
-        this.hasCompleted = this.micros.completed.length > 0;
+        this.hasCompleted = this.benchmark.GetCompleted().length > 0;
+
+        AddAnalysis.call(this);
 
         AddSeries.call(this);
         AddData.call(this);
@@ -499,6 +401,7 @@ function MicroSubPage(ctor)
         AddCorrected.call(this);
         AddRaw.call(this);
         AddBaseline.call(this);
+        AddMemory.call(this);
     }
 
     this.AddContent = function (container)
@@ -511,7 +414,13 @@ function MicroSubPage(ctor)
         tab.AddTab("Corrected", this.corrected);
         tab.AddTab("Raw", this.raw);
         tab.AddTab("Baseline", this.baseline);
+        tab.AddTab("Memory", this.memory);
         tab.RenderTo(container);
+    }
+
+    this.GetType = function ()
+    {
+        return Benchmarks.Type.Micro;
     }
 
     var AddSeries = function ()
@@ -523,12 +432,10 @@ function MicroSubPage(ctor)
         table.SetTitle("Series");
         table.SetHeader(["Series", "Date", "Status"]);
 
-        for (var i = 0, end = this.micros.all.length; i < end; ++i)
+        this.benchmark.history.forEach((function (result)
         {
-            var micro = this.micros.all[i];
-
-            table.AddRow([micro.GetSerie(), micro.timestamp, Label.Status(micro.completed)]);
-        }
+            table.AddRow([result.GetSerie(), result.timestamp, Label.Status(result.completed)]);
+        }))
 
         table.RenderTo(this.overview);
     }
@@ -540,27 +447,30 @@ function MicroSubPage(ctor)
         var table = new Table();
 
         table.SetTitle("Data");
-        table.SetHeader(["Series", "Inliers", "Outliers"]);
+        table.SetHeader(["Series", "All", "Inliers", "Outliers"]);
 
         if (this.hasCompleted)
         {
-            for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+            this.benchmark.GetCompleted().forEach((function (element)
             {
-                var micro = this.micros.completed[i];
+                var allHtml = Util.FixArray(element.timeCorrected.samples).join(", ");
+                var wellAll = $("<div>");
+                wellAll.addClass("well well-sm");
+                wellAll.html(allHtml === "" ? "-" : allHtml);
 
-                var inlierHtml = Util.FixArray(micro.corrected.inliers).join(", ");
+                var inlierHtml = Util.FixArray(element.timeCorrected.inliers).join(", ");
                 var wellInlier = $("<div>");
                 wellInlier.addClass("well well-sm");
                 wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
 
 
-                var outlierHtml = Util.FixArray(micro.corrected.outliers).join(", ");
+                var outlierHtml = Util.FixArray(element.timeCorrected.outliers).join(", ");
                 var wellOutlier = $("<div>");
                 wellOutlier.addClass("well well-sm");
                 wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
 
-                table.AddRow([micro.GetSerie(), wellInlier, wellOutlier]);
-            }
+                table.AddRow([element.GetSerie(), wellAll, wellInlier, wellOutlier]);
+            }));
         }
         else
         {
@@ -584,12 +494,13 @@ function MicroSubPage(ctor)
 
         ComposeRows.call(this, table, (function (data)
         {
-            return data.corrected;
+            return data.timeCorrected;
         }));
 
         table.RenderTo(this.corrected);
 
     }
+
     var AddRaw = function ()
     {
         if (this.hasCompleted)
@@ -597,11 +508,12 @@ function MicroSubPage(ctor)
             var div = $("<div>");
             div.addClass("graph");
 
+            var history = this.benchmark.GetCompleted();
             var graph = new MicroBoxplot({
-                "dataHistory": this.micros,
-                "dataFunction": (function (data)
+                "completedHistory": history,
+                "dataFunction": (function (result)
                 {
-                    return data.raw;
+                    return result.timeSamples;
                 })
             });
             graph.RenderTo(div);
@@ -613,9 +525,9 @@ function MicroSubPage(ctor)
         table.SetTitle("Raw Measurements");
         table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
 
-        ComposeRows.call(this, table, (function (data)
+        ComposeRows.call(this, table, (function (result)
         {
-            return data.raw;
+            return result.timeSamples;
         }));
 
         table.RenderTo(this.raw);
@@ -628,14 +540,16 @@ function MicroSubPage(ctor)
             var div = $("<div>");
             div.addClass("graph");
 
+            var history = this.benchmark.GetCompleted();
             var graph = new MicroBoxplot({
-                "dataHistory": this.micros,
-                "dataFunction": (function (data)
+                "completedHistory": history,
+                "dataFunction": (function (result)
                 {
-                    return data.baseline;
+                    return result.timeBaseline;
                 })
             });
             graph.RenderTo(div);
+
             this.baseline.append(div);
         }
 
@@ -644,30 +558,88 @@ function MicroSubPage(ctor)
         table.SetTitle("Baseline Measurements");
         table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
 
-        ComposeRows.call(this, table, (function (data)
+        ComposeRows.call(this, table, (function (result)
         {
-            return data.baseline;
+            return result.timeBaseline;
         }));
 
         table.RenderTo(this.baseline);
+    }
+
+    var AddMemory = function ()
+    {
+        if (this.hasCompleted)
+        {
+            var tabs = new Tab({
+                "IDprefix": this.id + "--Memory--Graphs",
+                "vertical": true
+            });
+            tabs.container.addClass("graph-pane");
+
+            var dataFunction = (function (result)
+            {
+                return result.memorySamples;
+            });
+            tabs.AddTab("Boxplot", RenderBoxplot.call(this, tabs, dataFunction));
+            tabs.AddTab("Histogram", RenderHistogram.call(this, tabs, dataFunction));
+            tabs.AddTab("Samples", RenderSamplePlot.call(this, tabs, (function (result)
+            {
+                return [{
+                    name: "Memory Usage",
+                    data: dataFunction(result).samples
+                }]
+            })));
+
+            tabs.RenderTo(this.memory);
+        }
+
+        var table = new Table();
+
+        table.SetTitle("Memory Measurements");
+        table.SetHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+        ComposeRows.call(this, table, (function (result)
+        {
+            return result.memorySamples;
+        }));
+
+        table.RenderTo(this.memory);
+    }
+
+    var AddAnalysis = function ()
+    {
+        var leaks = this.benchmark.current.memoryLeaks;
+        if (leaks.length > 0)
+        {
+            this.analysis.append("<h3>Memory leaks found</h3>");
+            var leakTable = new Table();
+            leakTable.SetTitle("Memory Leaks");
+            leakTable.SetHeader(["File", "Line", "Size"]);
+
+            this.benchmark.current.memoryLeaks.forEach((function (element)
+            {
+                leakTable.AddRow([element.file, element.line, element.size]);
+            }));
+
+            leakTable.RenderTo(this.analysis);
+        }
     }
 
     var ComposeRows = function (table, dataFunc)
     {
         if (this.hasCompleted)
         {
-            for (var i = 0, end = this.micros.completed.length; i < end; ++i)
+            this.benchmark.GetCompleted().forEach((function (element)
             {
-                var bench = this.micros.completed[i];
+                var data = dataFunc(element);
 
-                var data = dataFunc(bench);
-                var avg = data.sampleAverage.toFixed(Config.Precision);
                 var med = data.median.toFixed(Config.Precision);
-                var sd = data.sampleStandardDeviation.toFixed(Config.Precision);
-                var low = data.sampleLow.toFixed(Config.Precision);
-                var high = data.sampleHigh.toFixed(Config.Precision);
-                table.AddRow([bench.GetSerie(), avg, med, sd, low, high]);
-            }
+                var avg = data.sampleStats.average.toFixed(Config.Precision);
+                var sd = data.sampleStats.standardDeviation.toFixed(Config.Precision);
+                var low = data.sampleStats.low.toFixed(Config.Precision);
+                var high = data.sampleStats.high.toFixed(Config.Precision);
+                table.AddRow([element.GetSerie(), avg, med, sd, low, high]);
+            }));
         }
         else
         {
@@ -675,7 +647,7 @@ function MicroSubPage(ctor)
         }
     }
 
-    var RenderCorrectedGraphs = function (element, dataFunc)
+    var RenderCorrectedGraphs = function (element)
     {
         var tabs = new Tab({
             "IDprefix": this.id + "--Corrected--Graphs",
@@ -685,64 +657,82 @@ function MicroSubPage(ctor)
 
         if (this.hasCompleted)
         {
-            RenderCorrectedBoxplot.call(this, tabs, this.micros);
-            RenderCorrectedHistogram.call(this, tabs, this.micros);
-            RenderSamplePlot.call(this, tabs, this.micros);
+            var dataFunction = (function (result)
+            {
+                return result.timeCorrected;
+            });
+            tabs.AddTab("Boxplot", RenderBoxplot.call(this, tabs, dataFunction));
+            tabs.AddTab("Histogram",RenderHistogram.call(this, tabs, dataFunction));
+            tabs.AddTab("Samples", RenderSamplePlot.call(this, tabs, (function (result)
+            {
+                return [
+                    {
+                        name: "Raw",
+                        data: result.timeSamples.samples
+                    },
+                    {
+                        name: "Baseline",
+                        data: result.timeBaseline.samples
+                    }]
+            })));
         }
 
         tabs.RenderTo(element);
     }
 
-    var RenderCorrectedBoxplot = function (tabs, dataHist)
+    var RenderBoxplot = function (tabs, dataFunction)
     {
         var div = $("<div>");
         div.addClass("graph");
 
         var graph = new MicroBoxplot({
-            "dataHistory": dataHist,
-            "dataFunction": (function (data)
-            {
-                return data.corrected;
-            })
+            "completedHistory": this.benchmark.GetCompleted(),
+            "dataFunction": dataFunction
         });
         graph.RenderTo(div);
-        tabs.AddTab("Boxplot", div);
+
+        return div;
     }
 
-    var RenderCorrectedHistogram = function (tabs, dataHist)
+    var RenderHistogram = function (tabs, dataFunction)
     {
         var div = $("<div>");
         div.addClass("graph");
 
-        var recent = dataHist.recent;
-        if (recent.completed)
+        var current = this.benchmark.current;
+        if (current.completed)
         {
-            var graph = new DataHistogram({
-                "data": recent.corrected
-            });
-            graph.RenderTo(div);
+            var samples = dataFunction(current).samples;
+            if (samples.length > 1)
+            {
+
+                var graph = new DataHistogram({
+                    "samples": samples
+                });
+                graph.RenderTo(div);
+            }
+            else
+            {
+                div.append("<h4>Not enough data to show!</h4>");
+            }
         }
         else
         {
             div.append("<h4>The most recent benchmark failed!</h4>");
         }
-
-        tabs.AddTab("Histogram", div);
+        return div;
     }
 
-    var RenderSamplePlot = function (tabs, dataHist)
+    var RenderSamplePlot = function (tabs, dataFunction)
     {
         var div = $("<div>");
         div.addClass("graph");
 
-        var recent = dataHist.recent;
-
-        if (recent.completed)
+        var current = this.benchmark.current;
+        if (current.completed)
         {
-
             var graph = new MicroSamplePlot({
-                "raw": recent.raw.raw,
-                "baseline": recent.baseline.raw
+                "series": dataFunction(current)
             });
 
             graph.RenderTo(div);
@@ -752,7 +742,7 @@ function MicroSubPage(ctor)
             div.append("<h4>The most recent benchmark failed!</h4>");
         }
 
-        tabs.AddTab("Samples", div);
+        return div;
     }
 
     __ConstructObject(this, ctor);
@@ -829,99 +819,47 @@ function OverviewSubPage(ctor)
 function Group(ctor)
 {
     this.name = "";
-    this.id = "";
 
     this.subPages = new Map();
 
-    this.micros = new BenchmarkGroup();
+    this.micros = new BenchmarkGroup({
+        "benchmarkType": MicroBenchmark
+    });
+
     this.variants = new BenchmarkGroup();
     this.advanced = new BenchmarkGroup();
 
-    this.Group = function ()
+    this.Deserialise = function (obj, hasCurrent)
     {
-        if (this.id == "")
-        {
-            this.id = Util.ComposePageID(this.name);
-        }
+        this.name = obj.name;
+        this.micros.name = obj.name;
+
+        this.micros.Deserialise(obj.micros, hasCurrent);
     }
 
-    __ConstructObject(this, ctor);
-}
-
-function BenchmarkHistory(ctor)
-{
-    this.all = [];
-    this.completed = [];
-    this.failed = [];
-
-    this.recent = {};
-
-    this.setIndex = false;
-    this.setCompletedFailed = false;
-
-    this.BenchmarkHistory = function ()
+    this.AddMicroBenchmark = function (benchmark)
     {
-        this.all.sort(BenchmarkSort);
-
-        if (this.setIndex)
-        {
-            this.all.forEach((function (element, index)
-            {
-                element.index = index;
-            }))
-        }
-
-        if (this.setCompletedFailed)
-        {
-            var obj = this;
-            this.all.forEach((function (bench, index, array)
-            {
-                if (bench.completed)
-                {
-                    obj.completed.push(bench);
-                }
-                else
-                {
-                    obj.failed.push(bench);
-                }
-            }));
-        }
-
-        this.recent = this.all[this.all.length - 1];
+        return this.micros.AddBenchmark(benchmark);
     }
 
-    this.GetCategories = function ()
+    this.GetCount = function ()
     {
-        var categories = [];
-
-        this.all.forEach((function (element)
-        {
-            categories.push(element.GetSerie());
-        }))
-
-        return categories;
+        return GetMicroCount.call(this);
     }
 
-    this.GetCompletedCategories = function ()
+    this.GetCompletedCount = function ()
     {
-        var categories = [];
-
-        this.completed.forEach((function (element)
-        {
-            categories.push(element.GetSerie());
-        }))
-
-        return categories;
+        return GetMicroCompletedCount.call(this);
     }
 
-    var BenchmarkSort = function (a, b)
+    var GetMicroCount = function ()
     {
-        if (a.timestamp < b.timestamp)
-            return 1;
-        if (a.timestamp > b.timestamp)
-            return -1;
-        // a must be equal to b
-        return 0;
+        return this.micros.all.Size();
+    }
+
+    var GetMicroCompletedCount = function ()
+    {
+        return this.micros.completed.length;
     }
 
     __ConstructObject(this, ctor);
@@ -929,69 +867,188 @@ function BenchmarkHistory(ctor)
 
 function BenchmarkGroup(ctor)
 {
-    this.all = [];
+    this.name = "";
+
+    this.benchmarkType = {};
+
+    this.all = new Map();
     this.completed = [];
     this.failed = [];
 
-    this.buffer = new Map();
-
-    this.BenchmarkGroup = function ()
+    this.Deserialise = function (obj, hasCurrent)
     {
-    }
-
-    this.AddBenchmark = function (bench, name)
-    {
-        if (this.buffer.Has(name) === false)
+        var self = this;
+        obj.forEach((function (element)
         {
-            this.buffer.Set(name, []);
-        }
+            var name = element.name;
+            var benchmark;
 
-        this.buffer.Apply(name, (function (benchHistory)
-        {
-            benchHistory.push(bench);
-        }));
-    }
-
-    this.InitBenchmarks = function ()
-    {
-        var obj = this;
-        this.buffer.Foreach(function (benchHistory, name)
-        {
-            obj.all.push(new BenchmarkHistory({
-                "setCompletedFailed": true,
-                "all": benchHistory,
-                "setIndex": true
-            }));
-        });
-
-
-        this.all.forEach((function (benchHistory, index, array)
-        {
-            if (benchHistory.recent.completed)
+            if (self.all.Has(name) !== true)
             {
-                obj.completed.push(benchHistory);
+                benchmark = new self.benchmarkType();
+
+                benchmark.Deserialise(element, hasCurrent);
+
+                self.all.Set(name, benchmark);
             }
             else
             {
-                obj.failed.push(benchHistory);
+                benchmark = self.all.Get(name);
+                benchmark.Deserialise(element, hasCurrent);
+            }
+
+            if (hasCurrent !== true)
+            {
+                if (benchmark.IsCompleted())
+                {
+                    self.completed.push(benchmark);
+                }
+                else
+                {
+                    self.failed.push(benchmark);
+                }
             }
         }));
+    }
+
+    this.AddBenchmark = function (benchmark)
+    {
+        var name = benchmark.GetName();
+        if (this.all.Has(benchmark) === false)
+        {
+            this.all.Set(name, benchmark);
+            return true;
+        }
+
+        return false;
     }
 
     __ConstructObject(this, ctor);
 }
 
-function Benchmark(ctor)
+function MicroBenchmark(ctor)
 {
     this.name = "";
-    this.group = "";
-    this.completed = false;
+    this.history = [];
+    this.current = new MicroResult();
 
-    this.operations = 0;
-    this.samples = 0;
+    this.Deserialise = function (obj, hasCurrent)
+    {
+        this.name = obj.name;
+        var self = this;
+        obj.history.forEach((function (element)
+        {
+            var result = new MicroResult();
+            result.Deserialise(element, hasCurrent);
+            self.history.unshift(result);
+        }));
+        this.history.length = Config.MicroMaxHistory - 1;
+
+        var result = new MicroResult();
+        result.Deserialise(obj.current, hasCurrent);
+
+        this.history.unshift(result);
+
+        this.history.forEach((function (element, index)
+        {
+            element.index = index;
+        }))
+
+        if (hasCurrent)
+        {
+            this.current = result;
+        }
+    }
+
+    this.GetCompleted = function ()
+    {
+        var completed = [];
+        this.history.forEach((function (element)
+        {
+            if (element.completed)
+            {
+                completed.push(element);
+            }
+        }));
+        return completed;
+    }
+
+    this.GetType = function ()
+    {
+        return Benchmarks.Type.Micro;
+    }
+
+    this.IsCompleted = function ()
+    {
+        return this.current.completed;
+    }
+
+    __ConstructObject(this, ctor);
+}
+
+function MicroResult(ctor)
+{
+    this.timeSamples = new MicroData();
+    this.timeBaseline = new MicroData();
+    this.timeCorrected = new MicroData();
+
+    this.memorySamples = new MicroData();
+
+    this.memoryLeaks = [];
 
     this.timestamp = "";
+
+    this.operationCount = 0;
+    this.sampleCount = 0;
+
+    this.memoryProfile = false;
+    this.completed = false;
+
     this.index = 0;
+
+    this.Deserialise = function (obj, hasCurrent)
+    {
+        this.completed = obj.completed;
+        this.timestamp = obj.timestamp;
+
+        if (this.completed)
+        {
+            this.operationCount = obj.operationCount;
+            this.sampleCount = obj.sampleCount;
+
+            this.timeSamples.Deserialise(obj.timeSamples, hasCurrent);
+            this.timeBaseline.Deserialise(obj.timeBaseline, hasCurrent);
+
+            if (obj.timeCorrected === "undefined")
+            {
+                this.timeCorrected.SetSamples(this.timeSamples.samples, this.timeBaseline.sampleStats.average);
+            }
+            else
+            {
+                this.timeCorrected.Deserialise(obj.timeCorrected, hasCurrent);
+            }
+
+            if (obj.memoryProfile !== "undefined")
+            {
+                this.memoryProfile = obj.memoryProfile;
+                if (this.memoryProfile)
+                {
+                    this.memorySamples.Deserialise(obj.memorySamples, hasCurrent);
+
+                    if (obj.memoryLeaks !== "undefined")
+                    {
+                        var self = this;
+                        obj.memoryLeaks.forEach((function (element)
+                        {
+                            var leak = new MemLeak();
+                            leak.Deserialise(element, hasCurrent);
+                            self.memoryLeaks.push(leak);
+                        }))
+                    }
+                }
+            }
+        }
+    }
 
     this.GetSerie = function ()
     {
@@ -1017,98 +1074,117 @@ function Benchmark(ctor)
     __ConstructObject(this, ctor);
 }
 
-function MicroBenchmark(ctor)
+function MicroData(ctor)
 {
-    Benchmark.apply(this);
+    this.samples = [];
+    this.inliers = [];
+    this.outliers = [];
 
-    this.raw = new Data();
-    this.baseline = new Data();
-    this.corrected = new Data();
-
-    this.MicroBenchmark = function ()
-    {
-        if (this.completed === true)
-        {
-            this.corrected = new Data({
-                "raw": jStat(this.raw.values).subtract(this.baseline.average)[0],
-                "samples": this.samples
-            });
-        }
-    }
-
-    this.GetType = function ()
-    {
-        return Benchmarks.Type.Micro;
-    }
-
-    __ConstructObject(this, ctor);
-}
-
-
-function Data(ctor)
-{
-    this.average = 0.0;
-    this.standardDeviation = 0.0;
-    this.variance = 0.0;
-    this.low = 0.0;
-    this.high = 0.0;
-
-    this.samples = 0;
-
-    this.sampleAverage = 0.0;
-    this.sampleStandardDeviation = 0.0;
-    this.sampleVariance = 0.0;
-    this.sampleLow = 0.0;
-    this.sampleHigh = 0.0;
-    this.sampleLow = 0.0;
-    this.sampleHigh = 0.0;
+    this.inlierStats = new MicroStat();
+    this.sampleStats = new MicroStat();
 
     this.median = 0.0;
     this.Q1 = 0.0;
     this.Q3 = 0.0;
 
-    this.raw = [];
-    this.values = [];
-    this.inliers = [];
-    this.outliers = [];
-
-    this.Data = function ()
+    this.Deserialise = function (obj, hasCurrent)
     {
-        this.values = this.raw;
-        this.values.sort(function (a, b) { return a - b; });
-        this.Calculate();
-    }
-
-    this.Calculate = function ()
-    {
-        if (this.values.length > 0)
+        var self = this;
+        obj.samples.forEach((function (element)
         {
-            var length = this.values.length;
-            var half = Math.floor(length / 2);
-            var quart = Math.floor(half / 2);
-            this.median = CalculateQ.call(this, this.values, half);
-            this.Q1 = CalculateQ.call(this, this.values, half - quart);
-            this.Q3 = CalculateQ.call(this, this.values, half + quart);
+            self.samples.push(element);
+        }));
 
-            this.sampleAverage = jStat.mean(this.values);
-            this.sampleStandardDeviation = jStat.stdev(this.values);
-            this.sampleVariance = jStat.variance(this.values);
-            this.sampleLow = this.values[0];
-            this.sampleHigh = this.values[length - 1];
+        var validSize = this.IsValid();
 
-            FilterData.call(this);
+        if (obj.sampleStats === "undefined" && validSize)
+        {
+            CalculateSampleStats.call(this);
+        }
+        else
+        {
+            if (validSize)
+            {
+                this.sampleStats.Deserialise(obj.sampleStats, hasCurrent);
+            }
+        }
+
+        if (validSize)
+        {
+            if (obj.inliers === "undefined" || obj.outliers === "undefined")
+            {
+                CalculatePercentileStats.call(this);
+            }
+            else
+            {
+                this.median = obj.median;
+                this.Q1 = obj.Q1;
+                this.Q3 = obj.Q3;
+
+                obj.outliers.forEach((function (element)
+                {
+                    self.outliers.push(element);
+                }));
+
+                obj.inliers.forEach((function (element)
+                {
+                    self.inliers.push(element);
+                }));
+
+                if (this.inliers.length > 1)
+                {
+                    this.inlierStats.Deserialise(obj.inlierStats, hasCurrent);
+                }
+            }
         }
     }
 
-    var FilterData = function ()
+    this.SetSamples = function (samples, correction)
     {
-        var IQR = this.Q3 - this.Q1;
+        if (correction !== "undefined")
+        {
+            samples.forEach((function (element)
+            {
+                element -= correction;
+            }));
+        }
+
+        this.samples = samples;
+        CalculateSampleStats.call(this);
+        CalculatePercentileStats.call(this);
+    }
+
+    this.IsValid = function ()
+    {
+        return this.samples.length > 1;
+    }
+
+    var CalculatePercentileStats = function ()
+    {
+        if (!this.IsValid())
+        {
+            return;
+        }
+
+        var sortedSamples = this.samples;
+        sortedSamples.sort(function (a, b) { return a - b; });
+
+        var length = sortedSamples.length;
+        var half = Math.floor(length / 2);
+        var quart = Math.floor(half / 2);
+
+        this.median = CalculateQ.call(this, sortedSamples, half);
+        this.Q1 = CalculateQ.call(this, sortedSamples, half - quart);
+        this.Q3 = CalculateQ.call(this, sortedSamples, half + quart);
+
+
+        var IQR = this.Q3 - this.Q1 + Number.EPSILON;
         var lower = this.Q1 - 1.5 * IQR;
         var upper = this.Q3 + 1.5 * IQR;
-        for (var i = 0, end = this.values.length; i < end; ++i)
+
+        sortedSamples.forEach((function (value)
         {
-            var value = this.values[i];
-            if (lower < value && value < upper)
+            if (lower <= value && value <= upper)
             {
                 this.inliers.unshift(value);
             }
@@ -1116,17 +1192,26 @@ function Data(ctor)
             {
                 this.outliers.unshift(value);
             }
-        }
+        }));
 
-        var length = this.inliers.length;
-        if (length > 0)
+        var inlierLength = this.inliers.length;
+        if (inlierLength > 0)
         {
-            this.average = jStat.mean(this.inliers);
-            this.standardDeviation = jStat.stdev(this.inliers);
-            this.variance = jStat.variance(this.inliers);
-            this.low = this.inliers[length - 1];
-            this.high = this.inliers[0]
+            var inlierStats = new Statistics(this.inliers);
+            this.inlierStats.average = inlierStats.mean;
+            this.inlierStats.standardDeviation = inlierStats.standardDeviation;
+            this.inlierStats.low = Util.Min(this.inliers);
+            this.inlierStats.high = Util.Max(this.inliers);
         }
+    }
+
+    var CalculateSampleStats = function ()
+    {
+        var sampleStats = new Statistics(this.samples);
+        this.sampleStats.average = sampleStats.mean;
+        this.sampleStats.standardDeviation = sampleStats.standardDeviation;
+        this.sampleStats.low = Util.Min(this.samples);
+        this.sampleStats.high = Util.Max(this.samples);
     }
 
     var CalculateQ = function (array, place)
@@ -1143,6 +1228,75 @@ function Data(ctor)
     }
 
     __ConstructObject(this, ctor);
+}
+
+function MicroStat(ctor)
+{
+    this.average = 0.0;
+    this.standardDeviation = 0.0;
+    this.low = 0.0;
+    this.high = 0.0;
+
+    this.Deserialise = function (obj, hasCurrent)
+    {
+        this.average = obj.average;
+        this.standardDeviation = obj.standardDeviation;
+        this.low = obj.low;
+        this.high = obj.high;
+    }
+
+    __ConstructObject(this, ctor);
+}
+
+function MemLeak(ctor)
+{
+    this.file = "";
+    this.size = 0;
+    this.line = 0;
+
+    this.Deserialise = function (obj, hasCurrent)
+    {
+        this.file = obj.file;
+        this.size = obj.size;
+        this.line = obj.line;
+    }
+
+    __ConstructObject(this, ctor);
+}
+
+function Statistics(samples)
+{
+    this.standardDeviation = 0.0;
+    this.variance = 0.0;
+    this.mean = 0.0;
+
+    this.Statistics = function ()
+    {
+        this.mean = CalculateMean.call(this, samples);
+        this.variance = CalculateVariance.call(this, samples, this.mean);
+        this.standardDeviation = Math.sqrt(this.variance);
+    }
+
+    var CalculateMean = function (data)
+    {
+        return data.reduce((function (a, b)
+        {
+            return a + b;
+        })) / data.length;
+    }
+
+    var CalculateVariance = function (data, mean)
+    {
+        var temp = 0.0;
+        data.forEach((function (element)
+        {
+            var v = element - mean;
+            temp += v * v;
+        }))
+        return temp / (data.length - 1);
+    }
+
+    __ConstructObject(this);
 }
 
 function Table(ctor)
@@ -1262,11 +1416,11 @@ function Tab(ctor)
             this.ul.addClass("tabs-left");
 
             var tabDiv = $("<div>");
-            tabDiv.addClass("col-xs-2");
+            tabDiv.addClass("col-xs-3 col-md-2");
             tabDiv.html(this.ul);
 
             var contentDiv = $("<div>");
-            contentDiv.addClass("col-xs-10");
+            contentDiv.addClass("col-xs-7 col-md10");
             contentDiv.html(this.content);
 
             this.container.addClass("container-fluid");
@@ -1320,8 +1474,8 @@ function Tab(ctor)
 
 function MicroBoxplot(ctor)
 {
-    this.dataFunction = (function (dataHist) { });
-    this.dataHistory = {};
+    this.dataFunction = (function (result) { });
+    this.completedHistory = [];
 
     this.averages = [];
     this.standardDeviations = [];
@@ -1330,34 +1484,45 @@ function MicroBoxplot(ctor)
 
     this.MicroBoxplot = function ()
     {
-        for (var i = 0, end = this.dataHistory.completed.length; i < end; ++i)
+        var self = this;
+        this.completedHistory.forEach((function (result, index)
         {
-            var bench = this.dataHistory.completed[i];
-            var data = this.dataFunction(bench);
+            var data = self.dataFunction(result);
 
-            this.values.push(Util.RoundArray([data.low, data.Q1, data.median, data.Q3, data.high]));
-            this.standardDeviations.push([i, Util.Round(data.standardDeviation)]);
-            this.averages.push([i, Util.Round(data.average)]);
+            self.values.push(Util.RoundArray([data.sampleStats.low, data.Q1, data.median, data.Q3, data.sampleStats.high]));
+            self.standardDeviations.push([index, Util.Round(data.sampleStats.standardDeviation)]);
+            self.averages.push([index, Util.Round(data.sampleStats.average)]);
 
             for (var j = 0, outlierEnd = data.outliers.length; j < outlierEnd; ++j)
             {
                 var outlier = data.outliers[j];
-                this.outliers.push([i, Util.Round(outlier)]);
+                self.outliers.push([index, Util.Round(outlier)]);
             }
-        }
+        }));
+    }
+
+    this.GetCategories = function ()
+    {
+        var categories = [];
+        this.completedHistory.forEach((function (result, index)
+        {
+            categories.push(result.GetSerie());
+        }));
+        return categories;
     }
 
     this.RenderTo = function (element)
     {
         element.highcharts({
             chart: {
-                type: "boxplot"
+                type: "boxplot",
+                reflow: true
             },
             title: {
                 text: ""
             },
             xAxis: {
-                categories: this.dataHistory.GetCompletedCategories(),
+                categories: this.GetCategories(),
                 title: {
                     text: "Series"
                 }
@@ -1412,14 +1577,13 @@ function MicroBoxplot(ctor)
 
 function MicroSamplePlot(ctor)
 {
-    this.raw = [];
-    this.baseline = [];
+    this.series = [];
 
     this.RenderTo = function (element)
     {
         element.highcharts({
             chart: {
-                type: "column"
+                type: "line"
             },
             title: {
                 text: ""
@@ -1435,18 +1599,13 @@ function MicroSamplePlot(ctor)
                 }
             },
             plotOptions: {
-                column: {
-                    stacking: "normal"
+                series: {
+                    marker: {
+                        enabled: false
+                    }
                 }
             },
-            series: [{
-                name: "Raw",
-                data: this.raw
-            },
-            {
-                name: "Baseline",
-                data: this.baseline
-            }]
+            series: this.series
         });
     }
 
@@ -1455,20 +1614,25 @@ function MicroSamplePlot(ctor)
 
 function DataHistogram(ctor)
 {
-    this.data = {};
-
-    this.DataHistogram = function ()
-    {
-    }
+    this.samples = [];
 
     this.RenderTo = function (element)
     {
         element.highcharts({
             chart: {
-                type: "histogram"
+                type: "histogram",
+                reflow: true
             },
             title: {
                 text: "Recent Histogram"
+            },
+            plotOptions: {
+                column: {
+                    pointPadding: 0,
+                    borderWidth: 0,
+                    groupPadding: 0,
+                    shadow: false
+                }
             },
             legend: {
                 enabled: false
@@ -1485,15 +1649,10 @@ function DataHistogram(ctor)
             },
             series: [{
                 name: "Frequency",
-                data: this.data.inliers
+                data: this.samples
             }]
 
         });
-    }
-
-    var GetIndex = function (theta, low, x)
-    {
-        return Math.round(Math.floor((x - low) / theta));
     }
 
     __ConstructObject(this, ctor);
@@ -1582,7 +1741,14 @@ function Map()
 
 var Config = {
 
-    Precision: 2
+    Precision: 2,
+
+    MicroMaxHistory: 10,
+
+    Deserialise: function (obj, hasCurrent)
+    {
+        Config.MicroMaxHistory = obj.microMaxHistory;
+    }
 
 }
 
@@ -1613,7 +1779,7 @@ var Util = {
 
     Fix: function (x)
     {
-        return x.toFixed(Config.Precision);
+        return parseFloat(x).toFixed(Config.Precision);
     },
 
     RoundArray: function (array)
@@ -1625,8 +1791,22 @@ var Util = {
 
     },
 
+    Min: function (array)
+    {
+        return Math.min.apply(Math, array);
+    },
+
+    Max: function (array)
+    {
+        return Math.max.apply(Math, array);
+    },
+
     Round: function (x)
     {
+        if (x.toString().indexOf('e') >= 0)
+        {
+            return Math.round(x);
+        }
         var decimals = Config.Precision;
         return +(Math.round(x + "e+" + decimals) + "e-" + decimals);
     },
@@ -1636,6 +1816,8 @@ var Util = {
         return (x - Math.floor(x / mod) * mod).toPrecision(7);
     }
 }
+
+
 
 var Benchmarks = {
 

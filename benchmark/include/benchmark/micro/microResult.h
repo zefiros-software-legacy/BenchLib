@@ -29,11 +29,11 @@ namespace BenchLib
 {
     struct MicroResult
     {
-        MicroData< double, false > timeSamples;
-        MicroData< double, false > timeBaseline;
-        MicroData< double, true > timeCorrected;
+        MicroData< double > timeSamples;
+        MicroData< double > timeBaseline;
+        MicroData< double > timeCorrected;
 
-        MicroData< int64_t, true > memorySamples;
+        MicroData< int64_t > memorySamples;
 
         std::vector< MemLeak > memoryLeaks;
 
@@ -126,17 +126,21 @@ namespace BenchLib
             if ( reader.HasMember( "memoryProfile" ) )
             {
                 result.memoryProfile = reader["memoryProfile"].GetBool();
+
                 if ( result.memoryProfile )
                 {
                     result.memorySamples.Deserialise( reader["memorySamples"] );
 
-                    const rapidjson::Value &leaks = reader["memoryLeaks"];
-
-                    for ( auto it = leaks.Begin(), end = leaks.End(); it != end; ++it )
+                    if ( reader.HasMember( "memoryLeaks" ) )
                     {
-                        MemLeak leak;
-                        ::BenchLib::Deserialise( leak, *it );
-                        result.memoryLeaks.emplace_back( leak );
+                        const rapidjson::Value &leaks = reader["memoryLeaks"];
+
+                        for ( auto it = leaks.Begin(), end = leaks.End(); it != end; ++it )
+                        {
+                            MemLeak leak;
+                            ::BenchLib::Deserialise( leak, *it );
+                            result.memoryLeaks.emplace_back( leak );
+                        }
                     }
                 }
             }

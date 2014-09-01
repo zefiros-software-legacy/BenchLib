@@ -25,20 +25,20 @@
 #include <chrono>
 #include <thread>
 
-MICRO( Test, test1, 2, true )
+MICRO( Test, test1, 200, true )
 {
     new uint32_t[32];
     new uint32_t[32];
     delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 3 ) );
 }
 
-MICRO( Test, test2, 2, true )
+MICRO( Test, test2, 200, true )
 {
     std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
 }
 
-MICRO( Test, fail, 2, true )
+MICRO( Test, fail, 200, true )
 {
     throw "";
 }

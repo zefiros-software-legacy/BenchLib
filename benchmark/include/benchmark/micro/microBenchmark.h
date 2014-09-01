@@ -132,15 +132,20 @@ namespace BenchLib
 
         void RunSamples()
         {
-            RunMemorySamples();
+            if ( IsProfileMemoryEnabled() )
+            {
+                RunMemorySamples();
+            }
 
             RunTimeSamples();
         }
 
         void RunBaseline()
         {
-            RunMemoryBaseline();
-
+            if ( IsProfileMemoryEnabled() )
+            {
+                RunMemoryBaseline();
+            }
 
             RunTimeBaseline();
         }
