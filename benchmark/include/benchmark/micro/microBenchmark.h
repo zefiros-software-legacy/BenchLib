@@ -174,7 +174,7 @@ namespace BenchLib
                 {
                     MicroStat<double> sampleStat = result->timeCorrected.GetSampleStats();
                     Statistics<double>::StatHistory stat;
-                    stat.average = sampleStat.average * result->operationCount;
+                    stat.average = sampleStat.average;
                     stat.variance = sampleStat.variance;
                     stat.sampleCount = result->sampleCount;
                     history.push_back( stat );
@@ -188,17 +188,13 @@ namespace BenchLib
 
                 double average = mCurrent.timeCorrected.GetSampleStats().average * GetOperationCount();
 
-                if ( std::ceil( interval.lower ) - std::ceil( interval.upper ) > 0 )
+                if ( average < interval.lower )
                 {
-                    if ( average < interval.lower )
-                    {
-                        regression |= ( uint32_t )Regression::TimeFaster;
-                    }
-                    else if ( average > interval.upper )
-                    {
-                        regression |= ( uint32_t )Regression::TimeSlower;
-                    }
-
+                    regression |= ( uint32_t )Regression::TimeFaster;
+                }
+                else if ( average > interval.upper )
+                {
+                    regression |= ( uint32_t )Regression::TimeSlower;
                 }
             }
 
