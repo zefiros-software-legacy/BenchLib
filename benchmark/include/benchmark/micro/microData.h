@@ -40,6 +40,13 @@ namespace BenchLib
     {
     public:
 
+        MicroData()
+            : mMedian( 0 ),
+              mQ1( 0 ),
+              mQ3( 0 )
+        {
+        }
+
         template< typename tWriter >
         void Serialise( tWriter &writer )
         {
@@ -49,6 +56,10 @@ namespace BenchLib
             {
                 writer.String( "sampleStats" );
                 ::BenchLib::Serialise( mSampleStats, writer );
+            }
+            else
+            {
+
             }
 
             writer.String( "samples" );
@@ -237,7 +248,7 @@ namespace BenchLib
 
         void CalculatePercentileStats()
         {
-            if (!IsValid())
+            if ( !IsValid() )
             {
                 return;
             }
@@ -275,6 +286,7 @@ namespace BenchLib
                 Statistics< tDataType > stats( mInliers );
                 mInlierStats.average = stats.GetMean();
                 mInlierStats.standardDeviation = stats.GetStandardDeviation();
+                mInlierStats.variance = stats.GetVariance();
                 mInlierStats.low = *mInliers.begin();
                 mInlierStats.high = *--mInliers.end();
             }
@@ -285,6 +297,7 @@ namespace BenchLib
             Statistics< tDataType > sampleStats( mSamples );
             mSampleStats.average = sampleStats.GetMean();
             mSampleStats.standardDeviation = sampleStats.GetStandardDeviation();
+            mSampleStats.variance = sampleStats.GetVariance();
             mSampleStats.low = *std::min_element( mSamples.begin(), mSamples.end() );
             mSampleStats.high = *std::max_element( mSamples.begin(), mSamples.end() );
         }

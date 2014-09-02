@@ -31,10 +31,19 @@ namespace BenchLib
     {
         tDataType average;
         tDataType standardDeviation;
+        tDataType variance;
         tDataType low;
         tDataType high;
-    };
 
+        MicroStat()
+            : average( 0 ),
+              standardDeviation( 0 ),
+              variance( 0 ),
+              low( 0 ),
+              high( 0 )
+        {
+        }
+    };
 
     template< typename tDataType, typename tWriter >
     void Serialise( MicroStat<tDataType> &result, tWriter &writer )
@@ -46,6 +55,9 @@ namespace BenchLib
 
         writer.String( "standardDeviation" );
         writer.Double( static_cast< double >( result.standardDeviation ) );
+
+        writer.String( "variance" );
+        writer.Double( static_cast< double >( result.variance ) );
 
         writer.String( "low" );
         writer.Double( static_cast< double >( result.low ) );
@@ -61,6 +73,7 @@ namespace BenchLib
     {
         result.average = static_cast< tDataType >( reader["average"].GetDouble() );
         result.standardDeviation = static_cast< tDataType >( reader["standardDeviation"].GetDouble() );
+        result.variance = static_cast< tDataType >( reader["variance"].GetDouble() );
         result.low = static_cast< tDataType >( reader["low"].GetDouble() );
         result.high = static_cast< tDataType >( reader["high"].GetDouble() );
     }

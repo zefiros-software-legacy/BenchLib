@@ -608,8 +608,58 @@ function MicroSubPage(ctor)
 
     var AddAnalysis = function ()
     {
-        var leaks = this.benchmark.current.memoryLeaks;
-        if (leaks.length > 0)
+        var current = this.benchmark.current;
+        var leaks = current.memoryLeaks;
+        var hasLeaks = leaks.length > 0;
+
+        this.analysis.append("<h3>Analysis</h3>");
+
+        if (!hasLeaks && current.regression === Benchmarks.Regression.None)
+        {
+            if (current.completed)
+            {
+                this.analysis.append("<p>Everything looks OK!</p>");
+            }
+            else
+            {
+                this.analysis.append("<p>Oh dear, it looks like this case needs fixing!</p>");
+            }
+        }
+        else
+        {
+            if (current.regression !== Benchmarks.Regression.None)
+            {
+                this.analysis.append("<h4>Regressions Detected</h4>");
+
+                var p = $("<ul>");
+                if (current.regression & Benchmarks.Regression.TimeSlower)
+                {
+                    p.append("<li>The case ran <b>slower</b> than expected.</li>");
+                }
+                else if (current.regression & Benchmarks.Regression.TimeFaster)
+                {
+                    p.append("<li>The case ran <i>faster</i> than expected.</li>");
+                }
+
+                if (current.regression & Benchmarks.Regression.MemSmaller)
+                {
+                    p.append("<li>The case used <b>less</b> memory than expected.</li>");
+                }
+                else if (current.regression & Benchmarks.Regression.MemLarger)
+                {
+                    p.append("<li>The case used <b>more</b> memory than expected.</li>");
+                }
+
+                if (current.regression & Benchmarks.Regression.MemAbsLarger)
+                {
+                    p.append("<li>The total memory usage peak was <b>higher</b> than expected.</li>");
+                }
+
+                this.analysis.append(p);
+            }
+        }
+
+        if (hasLeaks)
         {
             this.analysis.append("<h3>Memory leaks found</h3>");
             var leakTable = new Table();
@@ -662,7 +712,7 @@ function MicroSubPage(ctor)
                 return result.timeCorrected;
             });
             tabs.AddTab("Boxplot", RenderBoxplot.call(this, tabs, dataFunction));
-            tabs.AddTab("Histogram",RenderHistogram.call(this, tabs, dataFunction));
+            tabs.AddTab("Histogram", RenderHistogram.call(this, tabs, dataFunction));
             tabs.AddTab("Samples", RenderSamplePlot.call(this, tabs, (function (result)
             {
                 return [
@@ -731,11 +781,18 @@ function MicroSubPage(ctor)
         var current = this.benchmark.current;
         if (current.completed)
         {
-            var graph = new MicroSamplePlot({
-                "series": dataFunction(current)
-            });
-
-            graph.RenderTo(div);
+            var samples = dataFunction(current);
+            if (samples.length > 1)
+            {
+                var graph = new MicroSamplePlot({
+                    "series": samples
+                });
+                graph.RenderTo(div);
+            }
+            else
+            {
+                div.append("<h4>Not enough data to show!</h4>");
+            }
         }
         else
         {
@@ -994,6 +1051,8 @@ function MicroResult(ctor)
 
     this.memorySamples = new MicroData();
 
+    this.regression = 0;
+
     this.memoryLeaks = [];
 
     this.timestamp = "";
@@ -1016,10 +1075,15 @@ function MicroResult(ctor)
             this.operationCount = obj.operationCount;
             this.sampleCount = obj.sampleCount;
 
+            if (typeof obj.regression !== "undefined")
+            {
+                this.regression = obj.regression;
+            }
+
             this.timeSamples.Deserialise(obj.timeSamples, hasCurrent);
             this.timeBaseline.Deserialise(obj.timeBaseline, hasCurrent);
 
-            if (obj.timeCorrected === "undefined")
+            if (typeof obj.timeCorrected === "undefined")
             {
                 this.timeCorrected.SetSamples(this.timeSamples.samples, this.timeBaseline.sampleStats.average);
             }
@@ -1028,14 +1092,14 @@ function MicroResult(ctor)
                 this.timeCorrected.Deserialise(obj.timeCorrected, hasCurrent);
             }
 
-            if (obj.memoryProfile !== "undefined")
+            if (typeof obj.memoryProfile !== "undefined")
             {
                 this.memoryProfile = obj.memoryProfile;
                 if (this.memoryProfile)
                 {
                     this.memorySamples.Deserialise(obj.memorySamples, hasCurrent);
 
-                    if (obj.memoryLeaks !== "undefined")
+                    if (typeof obj.memoryLeaks !== "undefined")
                     {
                         var self = this;
                         obj.memoryLeaks.forEach((function (element)
@@ -1097,7 +1161,7 @@ function MicroData(ctor)
 
         var validSize = this.IsValid();
 
-        if (obj.sampleStats === "undefined" && validSize)
+        if (typeof obj.sampleStats === "undefined" && validSize)
         {
             CalculateSampleStats.call(this);
         }
@@ -1111,7 +1175,7 @@ function MicroData(ctor)
 
         if (validSize)
         {
-            if (obj.inliers === "undefined" || obj.outliers === "undefined")
+            if (typeof obj.inliers === "undefined" || typeof obj.outliers === "undefined")
             {
                 CalculatePercentileStats.call(this);
             }
@@ -1141,7 +1205,7 @@ function MicroData(ctor)
 
     this.SetSamples = function (samples, correction)
     {
-        if (correction !== "undefined")
+        if (typeof correction !== "undefined")
         {
             samples.forEach((function (element)
             {
@@ -1200,6 +1264,7 @@ function MicroData(ctor)
             var inlierStats = new Statistics(this.inliers);
             this.inlierStats.average = inlierStats.mean;
             this.inlierStats.standardDeviation = inlierStats.standardDeviation;
+            this.inlierStats.variance = inlierStats.variance;
             this.inlierStats.low = Util.Min(this.inliers);
             this.inlierStats.high = Util.Max(this.inliers);
         }
@@ -1210,6 +1275,7 @@ function MicroData(ctor)
         var sampleStats = new Statistics(this.samples);
         this.sampleStats.average = sampleStats.mean;
         this.sampleStats.standardDeviation = sampleStats.standardDeviation;
+        this.inlierStats.variance = inlierStats.variance;
         this.sampleStats.low = Util.Min(this.samples);
         this.sampleStats.high = Util.Max(this.samples);
     }
@@ -1234,6 +1300,7 @@ function MicroStat(ctor)
 {
     this.average = 0.0;
     this.standardDeviation = 0.0;
+    this.variance = 0.0;
     this.low = 0.0;
     this.high = 0.0;
 
@@ -1241,6 +1308,7 @@ function MicroStat(ctor)
     {
         this.average = obj.average;
         this.standardDeviation = obj.standardDeviation;
+        this.variance = obj.variance;
         this.low = obj.low;
         this.high = obj.high;
     }
@@ -1279,21 +1347,29 @@ function Statistics(samples)
 
     var CalculateMean = function (data)
     {
-        return data.reduce((function (a, b)
+        if (data.length > 0)
         {
-            return a + b;
-        })) / data.length;
+            return data.reduce((function (a, b)
+            {
+                return a + b;
+            })) / data.length;
+        }
+        return 0;
     }
 
     var CalculateVariance = function (data, mean)
     {
-        var temp = 0.0;
-        data.forEach((function (element)
+        if (data.length > 1)
         {
-            var v = element - mean;
-            temp += v * v;
-        }))
-        return temp / (data.length - 1);
+            var temp = 0.0;
+            data.forEach((function (element)
+            {
+                var v = element - mean;
+                temp += v * v;
+            }))
+            return temp / (data.length - 1);
+        }
+        return 0;
     }
 
     __ConstructObject(this);
@@ -1754,6 +1830,17 @@ var Config = {
 
 var Util = {
 
+    Map: function (array, func)
+    {
+        var result = [];
+        array.forEach((function (element)
+        {
+            result.unshift(func(element));
+        }));
+
+        return result;
+    },
+
     ComposePageID: function (page)
     {
         return page;
@@ -1771,7 +1858,7 @@ var Util = {
 
     FixArray: function (array)
     {
-        return jStat.map(array, function (x)
+        return Util.Map(array, function (x)
         {
             return Util.Fix(x);
         });
@@ -1784,7 +1871,7 @@ var Util = {
 
     RoundArray: function (array)
     {
-        return jStat.map(array, function (x)
+        return Util.Map(array, function (x)
         {
             return Util.Round(x);
         });
@@ -1817,14 +1904,21 @@ var Util = {
     }
 }
 
-
-
 var Benchmarks = {
 
     Type: {
         None: "None",
         Page: "Page",
         Micro: "Micro",
+    },
+
+    Regression: {
+        None: 0x00,
+        TimeSlower: 0x01,
+        TimeFaste: 0x02,
+        MemSmaller: 0x04,
+        MemLarger: 0x08,
+        MemAbsLarger: 0x12
     }
 }
 

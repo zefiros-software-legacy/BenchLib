@@ -114,16 +114,9 @@ namespace BenchLib
 
                     benchmark->RunSamples();
 
-                    const bool result = benchmark->Analyse();
+                    benchmark->Analyse();
 
-                    if ( result )
-                    {
-                        SetCompleted( benchmark, name );
-                    }
-                    else
-                    {
-                        SetFailed( failCount, benchmark, name );
-                    }
+                    SetCompleted( benchmark, name );
                 }
                 catch ( const std::exception &ex )
                 {

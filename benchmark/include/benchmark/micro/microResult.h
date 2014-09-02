@@ -42,8 +42,19 @@ namespace BenchLib
         std::size_t operationCount;
         std::size_t sampleCount;
 
+        uint32_t regression;
+
         bool memoryProfile;
         bool completed;
+
+        MicroResult()
+            : operationCount( 0 ),
+              sampleCount( 0 ),
+              regression( 0 ),
+              memoryProfile( true ),
+              completed( false )
+        {
+        }
     };
 
     template< typename tWriter >
@@ -54,10 +65,13 @@ namespace BenchLib
         if ( result.completed )
         {
             writer.String( "operationCount" );
-            writer.Int( result.operationCount );
+            writer.Uint( result.operationCount );
 
             writer.String( "sampleCount" );
-            writer.Int( result.sampleCount );
+            writer.Uint( result.sampleCount );
+
+            writer.String( "regression" );
+            writer.Uint( result.regression );
 
             writer.String( "timeSamples" );
             result.timeSamples.Serialise( writer );
@@ -110,6 +124,15 @@ namespace BenchLib
         {
             result.operationCount = reader["operationCount"].GetUint();
             result.sampleCount = reader["sampleCount"].GetUint();
+
+            if ( reader.HasMember( "regression" ) )
+            {
+                result.regression = reader["regression"].GetUint();
+            }
+            else
+            {
+                result.regression = 0;
+            }
 
             result.timeSamples.Deserialise( reader["timeSamples"] );
             result.timeBaseline.Deserialise( reader["timeBaseline"] );

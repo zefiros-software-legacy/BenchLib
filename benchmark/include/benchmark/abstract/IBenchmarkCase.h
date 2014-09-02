@@ -39,7 +39,7 @@ namespace BenchLib
         virtual double GetSampleDuration() const = 0;
         virtual double GetBaselineDuration() const = 0;
 
-        virtual bool Analyse() = 0;
+        virtual void Analyse() = 0;
 
         virtual bool IsProfileMemoryEnabled() const = 0;
 

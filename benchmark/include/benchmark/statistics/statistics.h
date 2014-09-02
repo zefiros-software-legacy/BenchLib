@@ -36,6 +36,19 @@ namespace BenchLib
     {
     public:
 
+        struct StatHistory
+        {
+            std::size_t sampleCount;
+            tDataType average;
+            tDataType variance;
+        };
+
+        struct ConfidenceInterval
+        {
+            tDataType lower;
+            tDataType upper;
+        };
+
         Statistics( const std::vector< tDataType > &data )
         {
             mMean = CalculateMean( data );
@@ -58,6 +71,60 @@ namespace BenchLib
             return mStandardDeviation;
         }
 
+        static void GetConfidenceInterval( std::vector< StatHistory > &history, ConfidenceInterval &interval )
+        {
+            std::size_t historySampleSize = 0;
+            tDataType scaledHistoryPooledVariance = 0;
+            tDataType scaledHistoryMean = 0;
+
+            for ( StatHistory &stat : history )
+            {
+                historySampleSize += stat.sampleCount;
+                scaledHistoryMean += stat.sampleCount * stat.average;
+                scaledHistoryPooledVariance += ( stat.sampleCount - 1 ) * stat.variance;
+            }
+
+            tDataType historyPooledStdev = std::sqrt( scaledHistoryPooledVariance / historySampleSize );
+            tDataType historyMean = scaledHistoryMean / historySampleSize;
+
+            return GetConfidenceInterval( historyPooledStdev, historySampleSize, historyMean, interval );
+        }
+
+        static void GetConfidenceInterval( tDataType stdev, std::size_t size, tDataType mean, ConfidenceInterval &interval )
+        {
+            if ( size > 0 )
+            {
+                tDataType zAlphaOver2 = NormalCDFInverse( 1 - gConfig.alpha * 0.5f );
+                tDataType offset = ( stdev * zAlphaOver2 ) / std::sqrt( size );
+
+                interval.lower = mean - offset - std::numeric_limits<float>::epsilon();
+                interval.upper = mean + offset + std::numeric_limits<float>::epsilon();
+            }
+            else
+            {
+                interval.lower = 0;
+                interval.upper = 0;
+            }
+        }
+
+        // http://www.johndcook.com/cpp_phi_inverse.html
+        static tDataType NormalCDFInverse( tDataType p )
+        {
+            assert( p >= 0.0f && p <= 1.0f );
+
+            if ( p < 0.5 )
+            {
+                // F^-1(p) = - G^-1(p)
+                return -RationalApproximation( sqrt( -2.0 * log( p ) ) );
+            }
+            else
+            {
+                // F^-1(p) = G^-1(1-p)
+                return RationalApproximation( sqrt( -2.0 * log( 1 - p ) ) );
+            }
+
+        }
+
     private:
 
         tDataType mStandardDeviation;
@@ -66,24 +133,42 @@ namespace BenchLib
 
         tDataType CalculateMean( const std::vector< tDataType > &data ) const
         {
-            assert( !data.empty() );
-            return std::accumulate( data.begin(), data.end(), 0.0f ) / data.size();
+            if ( !data.empty() )
+            {
+                return std::accumulate( data.begin(), data.end(), 0.0f ) / data.size();
+            }
+
+            return 0;
         }
 
         tDataType CalculateVariance( const std::vector< tDataType > &data, tDataType mean ) const
         {
-            assert( data.size() > 1 );
-            tDataType temp = 0;
-
-            for ( tDataType value : data )
+            if ( data.size() > 1 )
             {
-                tDataType valueSqrt = value - mean;
-                temp += valueSqrt * valueSqrt;
+                tDataType temp = 0;
+
+                for ( tDataType value : data )
+                {
+                    tDataType valueSqrt = value - mean;
+                    temp += valueSqrt * valueSqrt;
+                }
+
+                return temp / ( data.size() - 1 );
             }
 
-            return temp / ( data.size() - 1 );
+            return 0.0f;
         }
 
+        // http://www.johndcook.com/cpp_phi_inverse.html
+        static tDataType RationalApproximation( tDataType t )
+        {
+            // Abramowitz and Stegun formula 26.2.23.
+            // The absolute value of the error should be less than 4.5 e-4.
+            tDataType c[] = {2.515517, 0.802853, 0.010328};
+            tDataType d[] = {1.432788, 0.189269, 0.001308};
+            return t - ( ( c[2] * t + c[1] ) * t + c[0] ) /
+                   ( ( ( d[2] * t + d[1] ) * t + d[0] ) * t + 1.0 );
+        }
     };
 
 }

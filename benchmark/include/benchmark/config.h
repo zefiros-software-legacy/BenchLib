@@ -30,6 +30,7 @@ namespace BenchLib
 {
 
 #define BENCHLIB_MICRO_MAX_HISTORY 10
+#define BENCHLIB_MICRO_ALPHA 0.2
 #define BENCHLIB_VIEWER_VAR "benchmarkData"
 
     struct Config
@@ -39,8 +40,11 @@ namespace BenchLib
         std::string viewerVar;
         std::string timestamp;
 
+        double alpha;
+
         Config()
-            : microMaxHistory( BENCHLIB_MICRO_MAX_HISTORY )
+            : microMaxHistory( BENCHLIB_MICRO_MAX_HISTORY ),
+              alpha( BENCHLIB_MICRO_ALPHA )
         {
         }
 
@@ -55,6 +59,9 @@ namespace BenchLib
         writer.String( "microMaxHistory" );
         writer.Uint( config.microMaxHistory );
 
+        writer.String( "alpha" );
+        writer.Double( config.alpha );
+
         writer.EndObject();
     }
 
@@ -62,6 +69,7 @@ namespace BenchLib
     void Deserialise( Config &config, tReader &reader )
     {
         config.microMaxHistory = reader["microMaxHistory"].GetUint();
+        config.alpha = reader["alpha"].GetDouble();
     }
 }
 

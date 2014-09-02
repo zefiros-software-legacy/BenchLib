@@ -23,6 +23,7 @@ var SchemaMicroResultCompleted = schema({
     "timeSamples": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "timeBaseline": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "?timeCorrected": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
+    "?regression": Number,
     "operationCount": Number.min(0),
     "sampleCount": Number.min(0),
     "timestamp": String,
@@ -36,6 +37,7 @@ var SchemaMicroResultCompletedMemory = schema({
     "?timeCorrected": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "memorySamples": [SchemaMicroDataComplete, SchemaMicroDataCompleteAnalysed, SchemaMicroDataCompleteAnalysedNoInliers],
     "?memoryLeaks": Array.of(SchemaMemoryLeak),
+    "?regression": Number,
     "operationCount": Number.min(0),
     "sampleCount": Number.min(0),
     "timestamp": String,
@@ -87,6 +89,7 @@ var SchemaMicroDataCompleteAnalysedNoInliers = schema({
 var SchemaMicroStat = schema({
     "average": Number,
     "standardDeviation": Number,
+    "variance": Number,
     "low": Number,
     "high": Number
 });

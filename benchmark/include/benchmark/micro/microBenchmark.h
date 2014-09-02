@@ -27,12 +27,14 @@
 #include "benchmark/abstract/IBenchmarkCase.h"
 #include "benchmark/micro/microResult.h"
 #include "benchmark/micro/microData.h"
+#include "benchmark/regression.h"
 #include "benchmark/console.h"
 #include "benchmark/config.h"
 #include "benchmark/timer.h"
 #include "benchmark/util.h"
 
 #include <vector>
+#include <cmath>
 
 #define MICRO( group, name, samples, memoryProfile )                                                \
     namespace __Benchmark                                                                           \
@@ -150,7 +152,7 @@ namespace BenchLib
             RunTimeBaseline();
         }
 
-        virtual bool Analyse()
+        virtual void Analyse()
         {
             Console::Baseline( GetOverhead() );
 
@@ -160,8 +162,108 @@ namespace BenchLib
             Console::PrintResultCorrected();
             Console::Result( mCurrent.timeCorrected.GetSampleStats() );
 
-            return true;
+            uint32_t regression = ( uint32_t )Regression::None;
+
+            std::vector< MicroResult * > completedResults = GetCompletedResults();
+
+            if ( !completedResults.empty() )
+            {
+                std::vector< Statistics<double>::StatHistory > history;
+
+                for ( MicroResult *result : completedResults )
+                {
+                    MicroStat<double> sampleStat = result->timeCorrected.GetSampleStats();
+                    Statistics<double>::StatHistory stat;
+                    stat.average = sampleStat.average * result->operationCount;
+                    stat.variance = sampleStat.variance;
+                    stat.sampleCount = result->sampleCount;
+                    history.push_back( stat );
+                }
+
+                Statistics<double>::ConfidenceInterval interval;
+                Statistics<double>::GetConfidenceInterval( history, interval );
+
+                std::cout << interval.lower << " <= " << mCurrent.timeCorrected.GetSampleStats().average << " <= " << interval.upper <<
+                          std::endl;
+
+                double average = mCurrent.timeCorrected.GetSampleStats().average * GetOperationCount();
+
+                if ( std::ceil( interval.lower ) - std::ceil( interval.upper ) > 0 )
+                {
+                    if ( average < interval.lower )
+                    {
+                        regression |= ( uint32_t )Regression::TimeFaster;
+                    }
+                    else if ( average > interval.upper )
+                    {
+                        regression |= ( uint32_t )Regression::TimeSlower;
+                    }
+
+                }
+            }
+
+            if ( IsProfileMemoryEnabled() )
+            {
+                std::vector< Statistics<double>::StatHistory > history;
+                std::vector< Statistics<double>::StatHistory > historyHigh;
+
+                for ( MicroResult *result : completedResults )
+                {
+                    std::size_t sampleCount = result->memorySamples.GetSamples().size();
+
+                    if ( result->memoryProfile && sampleCount > 0 )
+                    {
+                        MicroStat<int64_t> sampleStat = result->memorySamples.GetSampleStats();
+
+                        Statistics<double>::StatHistory stat, statHigh;
+                        stat.average = sampleStat.average;
+                        stat.variance = sampleStat.variance;
+                        stat.sampleCount = sampleCount;
+
+                        statHigh = stat;
+                        statHigh.average = sampleStat.high;
+
+                        history.push_back( stat );
+                        historyHigh.push_back( statHigh );
+                    }
+                }
+
+                if ( !history.empty() )
+                {
+                    Statistics<double>::ConfidenceInterval interval;
+                    Statistics<double>::GetConfidenceInterval( history, interval );
+
+                    std::cout << interval.lower << " <= " << mCurrent.memorySamples.GetSampleStats().average << " <= " << interval.upper <<
+                              std::endl;
+
+                    MicroStat< int64_t > stats = mCurrent.memorySamples.GetSampleStats();
+                    double average = stats.average;
+
+                    if ( average < interval.lower )
+                    {
+                        regression |= ( uint32_t )Regression::MemSmaller;
+                    }
+                    else if ( average > interval.upper )
+                    {
+                        regression |= ( uint32_t )Regression::MemLarger;
+                    }
+
+                    Statistics<double>::ConfidenceInterval intervalAbs;
+                    Statistics<double>::GetConfidenceInterval( historyHigh, intervalAbs );
+
+
+                    std::cout << mCurrent.memorySamples.GetSampleStats().high << " <= " << intervalAbs.upper << std::endl;
+
+                    if ( stats.high > intervalAbs.upper )
+                    {
+                        regression |= ( uint32_t )Regression::MemAbsLarger;
+                    }
+                }
+            }
+
+            mCurrent.regression = regression;
         }
+
 
         virtual bool IsCompleted() const
         {
@@ -190,6 +292,7 @@ namespace BenchLib
 
         void CalculateOperationCount()
         {
+            mCurrent.memoryProfile = IsProfileMemoryEnabled();
             mCurrent.timestamp = gConfig.timestamp;
             mCurrent.operationCount = 0;
             mCurrent.sampleCount = GetSampleCount();
@@ -258,10 +361,7 @@ namespace BenchLib
 
             Memory::GetInstance().EndProfile( samples, mCurrent.memoryLeaks );
 
-            if ( samples.size() > 1 )
-            {
-                mCurrent.memorySamples.SetSamples( samples );
-            }
+            mCurrent.memorySamples.SetSamples( samples );
         }
 
         void RunTimeSamples()
@@ -330,6 +430,21 @@ namespace BenchLib
         virtual double GetOverhead() const
         {
             return mCurrent.timeBaseline.GetSampleStats().average;
+        }
+
+        std::vector< MicroResult * > GetCompletedResults()
+        {
+            std::vector< MicroResult * > results;
+
+            for ( MicroResult &result : mHistory )
+            {
+                if ( result.completed )
+                {
+                    results.push_back( &result );
+                }
+            }
+
+            return results;
         }
 
     };

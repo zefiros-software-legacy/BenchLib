@@ -19,51 +19,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#pragma once
+#ifndef __BENCHLIB__REGRESSION_H__
+#define __BENCHLIB__REGRESSION_H__
 
-#include "benchmark/benchmark.h"
-
-#include <chrono>
-#include <thread>
-
-MICRO( Test, Test1, 200, true )
+namespace BenchLib
 {
-    new uint32_t[32];
-    new uint32_t[32];
-    delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 5 ) );
+
+    enum class Regression
+    {
+        None            = 0x00,
+        TimeSlower      = 0x01,
+        TimeFaster      = 0x02,
+        MemSmaller      = 0x04,
+        MemLarger       = 0x08,
+        MemAbsLarger    = 0x12
+    };
+
 }
-
-MICRO( Test, Test2, 200, true )
-{
-    delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
-}
-
-MICRO( Test, Fail, 200, true )
-{
-    throw "";
-}
-
-MICRO( Test2, Test1, 200, true )
-{
-    delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 8 ) );
-}
-
-int main( int argc, char *argv[] )
-{
-#ifdef _WIN32
-
-    _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
-    _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE );
-    _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
-    //_crtBreakAlloc =  0;
 
 #endif
-
-    int32_t result = BenchLib::RunAll( argc, argv );
-
-    system( "pause" );
-
-    return result;
-}
