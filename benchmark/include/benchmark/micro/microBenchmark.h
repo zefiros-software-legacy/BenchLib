@@ -186,7 +186,7 @@ namespace BenchLib
                 std::cout << interval.lower << " <= " << mCurrent.timeCorrected.GetSampleStats().average << " <= " << interval.upper <<
                           std::endl;
 
-                double average = mCurrent.timeCorrected.GetSampleStats().average * GetOperationCount();
+                double average = mCurrent.timeCorrected.GetSampleStats().average;
 
                 if ( average < interval.lower )
                 {
