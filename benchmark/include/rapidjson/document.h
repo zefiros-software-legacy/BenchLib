@@ -118,9 +118,9 @@ public:
     //! Iterator type itself
     typedef GenericMemberIterator Iterator;
     //! Constant iterator type
-    typedef GenericMemberIterator<true,Encoding,Allocator>  ConstIterator;
+    typedef GenericMemberIterator<true,Encoding,Allocator>  ConstType;
     //! Non-constant iterator type
-    typedef GenericMemberIterator<false,Encoding,Allocator> NonConstIterator;
+    typedef GenericMemberIterator<false,Encoding,Allocator> NonConstType;
 
     //! Pointer to (const) GenericMember
     typedef typename BaseType::pointer         Pointer;
@@ -151,7 +151,7 @@ public:
             constructor effectively defines a regular copy-constructor.
             Otherwise, the copy constructor is implicitly defined.
     */
-    GenericMemberIterator(const NonConstIterator & it) : ptr_(it.ptr_) {}
+    GenericMemberIterator(const NonConstType & it) : ptr_( it.ptr_ ) {}
 
     //! @name stepping
     //@{
@@ -172,12 +172,12 @@ public:
 
     //! @name relations
     //@{
-    bool operator==(ConstIterator that) const { return ptr_ == that.ptr_; }
-    bool operator!=(ConstIterator that) const { return ptr_ != that.ptr_; }
-    bool operator<=(ConstIterator that) const { return ptr_ <= that.ptr_; }
-    bool operator>=(ConstIterator that) const { return ptr_ >= that.ptr_; }
-    bool operator< (ConstIterator that) const { return ptr_ < that.ptr_; }
-    bool operator> (ConstIterator that) const { return ptr_ > that.ptr_; }
+    bool operator==(Iterator that) const { return ptr_ == that.ptr_; }
+    bool operator!=(Iterator that) const { return ptr_ != that.ptr_; }
+    bool operator<=(Iterator that) const { return ptr_ <= that.ptr_; }
+    bool operator>=(Iterator that) const { return ptr_ >= that.ptr_; }
+    bool operator< (Iterator that) const { return ptr_ < that.ptr_; }
+    bool operator> (Iterator that) const { return ptr_ > that.ptr_; }
     //@}
 
     //! @name dereference
@@ -188,7 +188,7 @@ public:
     //@}
 
     //! Distance
-    DifferenceType operator-(ConstIterator that) const { return ptr_-that.ptr_; }
+    DifferenceType operator-(Iterator that) const { return ptr_-that.ptr_; }
 
 private:
     //! Internal constructor from plain pointer
@@ -535,7 +535,7 @@ public:
 
             case kObjectFlag:
                 for (MemberIterator m = MemberBegin(); m != MemberEnd(); ++m) {
-                    m->~Member();
+                    m->~GenericMember();
                 }
                 Allocator::Free(data_.o.members);
                 break;
@@ -977,7 +977,7 @@ public:
         }
         else {
             // Only one left, just destroy
-            m->~Member();
+            m->~GenericMember();
         }
         --data_.o.size;
         return m;
@@ -1012,9 +1012,9 @@ public:
         RAPIDJSON_ASSERT(last <= MemberEnd());
 
         MemberIterator pos = MemberBegin() + (first - MemberBegin());
-        for (MemberIterator itr = pos; itr != last; ++itr)
+        for (MemberIterator itr = pos; ConstMemberIterator(itr) != last; ++itr)
             itr->~Member();
-        memmove(&*pos, &*last, (MemberEnd() - last) * sizeof(Member));
+        memmove(&*pos, &*last, (ConstMemberIterator(MemberEnd()) - last) * sizeof(Member));
         data_.o.size -= (last - first);
         return pos;
     }

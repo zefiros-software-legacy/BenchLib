@@ -397,8 +397,6 @@ namespace BenchLib
 
             std::ostream &mStream;
         };
-
-
     };
 
     static bool RegisterMicroBenchmark( const std::string &group, MicroBenchmark *benchCase )
