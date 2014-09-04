@@ -26,8 +26,8 @@
 
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/filereadstream.h"
-#include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
+#include "rapidjson/writer.h"
 #include "rapidjson/reader.h"
 
 #include "benchmark/memory.h"
@@ -91,7 +91,7 @@ namespace BenchLib
                 }
 
                 OFStream ostream( stream );
-                rapidjson::PrettyWriter<OFStream> writer( ostream );
+                rapidjson::Writer<OFStream> writer( ostream );
 
                 writer.StartObject();
 

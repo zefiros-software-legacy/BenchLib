@@ -33,7 +33,8 @@ namespace BenchLib
         TimeFaster      = 0x02,
         MemSmaller      = 0x04,
         MemLarger       = 0x08,
-        MemAbsLarger    = 0x12
+        PeakMemSmaller  = 0x10,
+        PeakMemLarger   = 0x20
     };
 
 }

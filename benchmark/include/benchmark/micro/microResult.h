@@ -33,7 +33,9 @@ namespace BenchLib
         MicroData< double > timeBaseline;
         MicroData< double > timeCorrected;
 
-        MicroData< int64_t > memorySamples;
+        MicroData< double, int64_t > memorySamples;
+        MicroData< double, int64_t > memoryBaseline;
+        MicroData< double, int64_t > memoryCorrected;
 
         std::vector< MemLeak > memoryLeaks;
 
@@ -82,9 +84,6 @@ namespace BenchLib
             writer.String( "timeCorrected" );
             result.timeCorrected.Serialise( writer );
 
-            writer.String( "timeCorrected" );
-            result.timeCorrected.Serialise( writer );
-
             if ( result.memoryProfile )
             {
                 writer.String( "memoryProfile" );
@@ -92,6 +91,12 @@ namespace BenchLib
 
                 writer.String( "memorySamples" );
                 result.memorySamples.Serialise( writer );
+
+                writer.String( "memoryBaseline" );
+                result.memoryBaseline.Serialise( writer );
+
+                writer.String( "memoryCorrected" );
+                result.memoryCorrected.Serialise( writer );
 
                 writer.String( "memoryLeaks" );
                 writer.StartArray();
@@ -153,6 +158,8 @@ namespace BenchLib
                 if ( result.memoryProfile )
                 {
                     result.memorySamples.Deserialise( reader["memorySamples"] );
+                    result.memoryBaseline.Deserialise( reader["memoryBaseline"] );
+                    result.memoryCorrected.Deserialise( reader["memoryCorrected"] );
 
                     if ( reader.HasMember( "memoryLeaks" ) )
                     {

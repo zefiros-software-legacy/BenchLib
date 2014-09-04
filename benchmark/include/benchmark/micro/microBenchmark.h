@@ -168,98 +168,135 @@ namespace BenchLib
 
             if ( !completedResults.empty() )
             {
-                std::vector< Statistics<double>::StatHistory > history;
+                Statistics<double>::ConfidenceInterval interval;
 
-                for ( MicroResult *result : completedResults )
+                if ( !gConfig.winsoriseAnalysis )
                 {
-                    MicroStat<double> sampleStat = result->timeCorrected.GetSampleStats();
-                    Statistics<double>::StatHistory stat;
-                    stat.average = sampleStat.average;
-                    stat.variance = sampleStat.variance;
-                    stat.sampleCount = result->sampleCount;
-                    history.push_back( stat );
+                    std::vector< Statistics<double>::StatHistory > history;
+
+                    for ( MicroResult *result : completedResults )
+                    {
+                        MicroStat<double> sampleStat = result->timeCorrected.GetSampleStats();
+
+                        Statistics<double>::StatHistory stat;
+                        stat.average = sampleStat.average;
+                        stat.variance = sampleStat.variance;
+                        stat.sampleCount = result->sampleCount;
+                        history.push_back( stat );
+                    }
+
+                    Statistics<double>::GetConfidenceInterval( history, interval );
+                }
+                else
+                {
+                    std::vector<double> samples;
+
+                    for ( MicroResult *result : completedResults )
+                    {
+                        std::vector<double> t = result->timeCorrected.GetWinsorisedSamples();
+
+                        samples.reserve( samples.size() + t.size() );
+                        samples.insert( samples.end(), t.begin(), t.end() );
+                    }
+
+                    Statistics< double > sampleStats( samples );
+                    Statistics<double>::GetConfidenceInterval( sampleStats.GetStandardDeviation(), samples.size() , sampleStats.GetMean(),
+                            interval );
                 }
 
-                Statistics<double>::ConfidenceInterval interval;
-                Statistics<double>::GetConfidenceInterval( history, interval );
+                double average;
 
-                std::cout << interval.lower << " <= " << mCurrent.timeCorrected.GetSampleStats().average << " <= " << interval.upper <<
-                          std::endl;
-
-                double average = mCurrent.timeCorrected.GetSampleStats().average;
+                if ( !gConfig.winsoriseAnalysis )
+                {
+                    average = mCurrent.timeCorrected.GetSampleStats().average;
+                }
+                else
+                {
+                    MicroData< double > data;
+                    data.SetSamples( mCurrent.timeCorrected.GetWinsorisedSamples() );
+                    average = data.GetSampleStats().average;
+                }
 
                 if ( average < interval.lower )
                 {
                     regression |= ( uint32_t )Regression::TimeFaster;
+                    Console::RegressTimeFaster( interval.lower, interval.upper, average );
                 }
                 else if ( average > interval.upper )
                 {
                     regression |= ( uint32_t )Regression::TimeSlower;
+                    Console::RegressTimeSlower( interval.lower, interval.upper, average );
                 }
             }
 
             if ( IsProfileMemoryEnabled() )
             {
-                std::vector< Statistics<double>::StatHistory > history;
-                std::vector< Statistics<double>::StatHistory > historyHigh;
+                std::vector< Statistics<double, int64_t>::StatHistory > history;
+                std::vector< int64_t > peaks;
 
                 for ( MicroResult *result : completedResults )
                 {
-                    std::size_t sampleCount = result->memorySamples.GetSamples().size();
+                    std::size_t sampleCount = result->memoryCorrected.GetSamples().size();
+
+                    MicroStat<double, int64_t> sampleStat = result->memoryCorrected.GetSampleStats();
 
                     if ( result->memoryProfile && sampleCount > 0 )
                     {
-                        MicroStat<int64_t> sampleStat = result->memorySamples.GetSampleStats();
 
-                        Statistics<double>::StatHistory stat, statHigh;
+
+                        Statistics<double, int64_t>::StatHistory stat;
                         stat.average = sampleStat.average;
                         stat.variance = sampleStat.variance;
                         stat.sampleCount = sampleCount;
 
-                        statHigh = stat;
-                        statHigh.average = sampleStat.high;
-
                         history.push_back( stat );
-                        historyHigh.push_back( statHigh );
                     }
+
+                    peaks.push_back( sampleStat.high );
                 }
 
                 if ( !history.empty() )
                 {
-                    Statistics<double>::ConfidenceInterval interval;
-                    Statistics<double>::GetConfidenceInterval( history, interval );
+                    Statistics<double, int64_t>::ConfidenceInterval interval;
+                    Statistics<double, int64_t>::GetConfidenceInterval( history, interval );
 
-                    std::cout << interval.lower << " <= " << mCurrent.memorySamples.GetSampleStats().average << " <= " << interval.upper <<
-                              std::endl;
-
-                    MicroStat< int64_t > stats = mCurrent.memorySamples.GetSampleStats();
+                    MicroStat< double, int64_t > stats = mCurrent.memoryCorrected.GetSampleStats();
                     double average = stats.average;
 
                     if ( average < interval.lower )
                     {
                         regression |= ( uint32_t )Regression::MemSmaller;
+                        Console::RegressMemSmaller( interval.lower, interval.upper, average );
                     }
                     else if ( average > interval.upper )
                     {
                         regression |= ( uint32_t )Regression::MemLarger;
+                        Console::RegressMemLarger( interval.lower, interval.upper, average );
                     }
 
-                    Statistics<double>::ConfidenceInterval intervalAbs;
-                    Statistics<double>::GetConfidenceInterval( historyHigh, intervalAbs );
+                    MicroData< double, int64_t > peakData;
+                    peakData.SetSamples( peaks );
+                    MicroStat< double, int64_t > peakStats = peakData.GetSampleStats();
 
+                    Statistics<double, int64_t>::ConfidenceInterval peakInterval;
+                    Statistics<double, int64_t>::GetConfidenceInterval( peakStats.standardDeviation, peaks.size(), peakStats.average,
+                            peakInterval );
 
-                    std::cout << mCurrent.memorySamples.GetSampleStats().high << " <= " << intervalAbs.upper << std::endl;
-
-                    if ( stats.high > intervalAbs.upper )
+                    if ( stats.high < peakInterval.lower )
                     {
-                        regression |= ( uint32_t )Regression::MemAbsLarger;
+                        regression |= ( uint32_t )Regression::PeakMemSmaller;
+                        Console::RegressPeakMemSmaller( peakInterval.lower, peakInterval.upper, stats.high );
+                    }
+                    else if ( stats.high > peakInterval.upper )
+                    {
+                        regression |= ( uint32_t )Regression::PeakMemLarger;
+                        Console::RegressPeakMemLarger( peakInterval.lower, peakInterval.upper, stats.high );
                     }
                 }
             }
 
             mCurrent.regression = regression;
         }
-
 
         virtual bool IsCompleted() const
         {
@@ -358,6 +395,7 @@ namespace BenchLib
             Memory::GetInstance().EndProfile( samples, mCurrent.memoryLeaks );
 
             mCurrent.memorySamples.SetSamples( samples );
+            mCurrent.memoryCorrected.SetSamples( samples, mCurrent.memoryBaseline.GetSampleStats().average );
         }
 
         void RunTimeSamples()
@@ -396,7 +434,7 @@ namespace BenchLib
 
             // if ( samples.size() > 1 )
             // {
-            //     mCurrent.memorySamples.SetSamples( samples );
+            //     mCurrent.memoryBaseline.SetSamples( samples );
             // }
         }
 

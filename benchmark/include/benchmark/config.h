@@ -29,8 +29,9 @@
 namespace BenchLib
 {
 
-#define BENCHLIB_MICRO_MAX_HISTORY 10
-#define BENCHLIB_MICRO_ALPHA 0.2
+#define BENCHLIB_MICRO_MAX_HISTORY 20
+#define BENCHLIB_MICRO_ALPHA 0.05
+#define BENCHLIB_WINSORISING_ANALSYSIS false
 #define BENCHLIB_VIEWER_VAR "benchmarkData"
 
     struct Config
@@ -42,9 +43,12 @@ namespace BenchLib
 
         double alpha;
 
+        bool winsoriseAnalysis;
+
         Config()
             : microMaxHistory( BENCHLIB_MICRO_MAX_HISTORY ),
-              alpha( BENCHLIB_MICRO_ALPHA )
+              alpha( BENCHLIB_MICRO_ALPHA ),
+              winsoriseAnalysis( BENCHLIB_WINSORISING_ANALSYSIS )
         {
         }
 

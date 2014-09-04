@@ -58,7 +58,7 @@ namespace BenchLib
 {
     namespace Console
     {
-        const std::size_t gPrecision = 2;
+        const std::size_t gPrecision = 6;
 
         inline void SetDefaultColour()
         {
@@ -102,6 +102,15 @@ namespace BenchLib
             SetColour( FOREGROUND_BLUE | FOREGROUND_GREEN );
 #else
             std::cout << "\033[0;36m";
+#endif
+        }
+
+        inline void SetMagentaColour()
+        {
+#ifdef _WIN32
+            SetColour( FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY );
+#else
+            std::cout << "\033[0;95m";
 #endif
         }
 
@@ -175,6 +184,13 @@ namespace BenchLib
             SetDefaultColour();
         }
 
+        inline void PrintRegressed()
+        {
+            SetMagentaColour();
+            std::cout << "[  REGRESSED ] ";
+            SetDefaultColour();
+        }
+
         inline std::string GetBenchmarkAmount( std::size_t amount )
         {
             return std::to_string( amount ) + std::string( amount > 1 ? " benchmarks" : " benchmark" );
@@ -225,10 +241,67 @@ namespace BenchLib
             std::cout << "Framework noise: " <<  std::fixed << std::setprecision( gPrecision ) << correction << std::endl;
         }
 
-        template< typename tT >
-        inline void Result( MicroStat< tT > stats )
+        inline void RegressTimeSlower( double lower, double upper, double average )
         {
+            PrintRegressed();
+            std::cout << "Ran slower than expected:\tExpected Range: ["
+                      << std::fixed << std::setprecision( gPrecision ) << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << average
+                      << std::endl;
+        }
 
+        inline void RegressTimeFaster( double lower, double upper, double average )
+        {
+            PrintRegressed();
+            std::cout << "Ran faster than expected:\tExpected Range: ["
+                      << std::fixed << std::setprecision( gPrecision ) << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << average
+                      << std::endl;
+        }
+
+        inline void RegressMemSmaller( double lower, double upper, double average )
+        {
+            PrintRegressed();
+            std::cout << "Used less memory than expected:\tExpected Range: ["
+                      << std::fixed << std::setprecision( gPrecision ) << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << average
+                      << std::endl;
+        }
+
+        inline void RegressMemLarger( double lower, double upper, double average )
+        {
+            PrintRegressed();
+            std::cout << "Used more memory than expected:\tExpected Range: ["
+                      << std::fixed << std::setprecision( gPrecision ) << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << average
+                      << std::endl;
+        }
+
+        inline void RegressPeakMemLarger( int64_t lower, int64_t upper, std::size_t actual )
+        {
+            PrintRegressed();
+            std::cout << "Higher peak memory than expected:\tExpected Range: ["
+                      << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tActual: " << actual
+                      << std::endl;
+        }
+
+        inline void RegressPeakMemSmaller( int64_t lower, int64_t upper, std::size_t actual )
+        {
+            PrintRegressed();
+            std::cout << "Lower peak memory than expected:\tExpected Range: ["
+                      << lower << ", "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tActual: " << actual
+                      << std::endl;
+        }
+
+        template< typename tT, typename tSample >
+        inline void Result( MicroStat< tT, tSample > stats )
+        {
             std::cout << "AVG: " << std::fixed << std::setprecision( gPrecision ) << stats.average <<
                       "\tSD: " << std::fixed << std::setprecision( gPrecision ) << stats.standardDeviation <<
                       "\tLOW: " << std::fixed << std::setprecision( gPrecision ) << stats.low  <<

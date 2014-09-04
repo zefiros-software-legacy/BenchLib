@@ -33,7 +33,6 @@ namespace BenchLib
     public:
 
         virtual void RunSamples() = 0;
-
         virtual void RunBaseline() = 0;
 
         virtual double GetSampleDuration() const = 0;

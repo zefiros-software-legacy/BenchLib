@@ -453,18 +453,18 @@ function MicroSubPage(ctor)
         {
             this.benchmark.GetCompleted().forEach((function (element)
             {
-                var allHtml = Util.FixArray(element.timeCorrected.samples).join(", ");
+                var allHtml = element.timeCorrected.samples.join(", ");
                 var wellAll = $("<div>");
                 wellAll.addClass("well well-sm");
                 wellAll.html(allHtml === "" ? "-" : allHtml);
 
-                var inlierHtml = Util.FixArray(element.timeCorrected.inliers).join(", ");
+                var inlierHtml = element.timeCorrected.inliers.join(", ");
                 var wellInlier = $("<div>");
                 wellInlier.addClass("well well-sm");
                 wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
 
 
-                var outlierHtml = Util.FixArray(element.timeCorrected.outliers).join(", ");
+                var outlierHtml = element.timeCorrected.outliers.join(", ");
                 var wellOutlier = $("<div>");
                 wellOutlier.addClass("well well-sm");
                 wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
@@ -650,9 +650,9 @@ function MicroSubPage(ctor)
                     p.append("<li>The case used <b>more</b> memory than expected.</li>");
                 }
 
-                if (current.regression & Benchmarks.Regression.MemAbsLarger)
+                if (current.regression & Benchmarks.Regression.PeakMemLarger)
                 {
-                    p.append("<li>The total memory usage peak was <b>higher</b> than expected.</li>");
+                    p.append("<li>The peak memory was <b>higher</b> than expected.</li>");
                 }
 
                 this.analysis.append(p);
@@ -1630,7 +1630,7 @@ function MicroBoxplot(ctor)
             },
             {
                 name: "Standard Deviation",
-                type: "scatter",
+                type: "line",
                 data: this.standardDeviations,
                 tooltip: {
                     pointFormat: "Standard Deviation: {point.y}"
@@ -1638,7 +1638,7 @@ function MicroBoxplot(ctor)
             },
             {
                 name: "Average",
-                type: "scatter",
+                type: "line",
                 data: this.averages,
                 tooltip: {
                     pointFormat: "Average: {point.y}"
@@ -1817,9 +1817,9 @@ function Map()
 
 var Config = {
 
-    Precision: 2,
+    Precision: 6,
 
-    MicroMaxHistory: 10,
+    MicroMaxHistory: 20,
 
     Deserialise: function (obj, hasCurrent)
     {
@@ -1915,10 +1915,10 @@ var Benchmarks = {
     Regression: {
         None: 0x00,
         TimeSlower: 0x01,
-        TimeFaste: 0x02,
+        TimeFaster: 0x02,
         MemSmaller: 0x04,
         MemLarger: 0x08,
-        MemAbsLarger: 0x12
+        PeakMemLarger: 0x10
     }
 }
 

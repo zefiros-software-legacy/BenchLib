@@ -30,12 +30,12 @@ MICRO( Test, Test1, 200, true )
     new uint32_t[32];
     new uint32_t[32];
     delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 5 ) );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 6 ) );
 }
 
 MICRO( Test, Test2, 200, true )
 {
-    delete[] new uint32_t[32];
+    //delete[] new uint32_t[32];
     std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
 }
 
@@ -47,7 +47,7 @@ MICRO( Test, Fail, 200, true )
 MICRO( Test2, Test1, 200, true )
 {
     delete[] new uint32_t[32];
-    std::this_thread::sleep_for( std::chrono::milliseconds( 8 ) );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 7 ) );
 }
 
 int main( int argc, char *argv[] )

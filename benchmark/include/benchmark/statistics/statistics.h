@@ -31,7 +31,7 @@
 
 namespace BenchLib
 {
-    template< typename tDataType >
+    template< typename tDataType, typename tSampleType = tDataType >
     class Statistics
     {
     public:
@@ -49,7 +49,7 @@ namespace BenchLib
             tDataType upper;
         };
 
-        Statistics( const std::vector< tDataType > &data )
+        Statistics( const std::vector< tSampleType > &data )
         {
             mMean = CalculateMean( data );
             mVariance = CalculateVariance( data, mMean );
@@ -131,7 +131,7 @@ namespace BenchLib
         tDataType mVariance;
         tDataType mMean;
 
-        tDataType CalculateMean( const std::vector< tDataType > &data ) const
+        tDataType CalculateMean( const std::vector< tSampleType > &data ) const
         {
             if ( !data.empty() )
             {
@@ -141,7 +141,7 @@ namespace BenchLib
             return 0;
         }
 
-        tDataType CalculateVariance( const std::vector< tDataType > &data, tDataType mean ) const
+        tDataType CalculateVariance( const std::vector< tSampleType > &data, tDataType mean ) const
         {
             if ( data.size() > 1 )
             {

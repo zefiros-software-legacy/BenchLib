@@ -35,7 +35,7 @@ namespace BenchLib
 #pragma warning(push)
 #pragma warning(disable: 4127)
 
-    template< typename tDataType >
+    template< typename tDataType, typename tSampleType = tDataType >
     class MicroData
     {
     public:
@@ -55,17 +55,13 @@ namespace BenchLib
             if ( IsValid() )
             {
                 writer.String( "sampleStats" );
-                ::BenchLib::Serialise( mSampleStats, writer );
-            }
-            else
-            {
-
+                ::BenchLib::Serialise< tDataType, tSampleType, tWriter >( mSampleStats, writer );
             }
 
             writer.String( "samples" );
             writer.StartArray();
 
-            for ( tDataType &value : mSamples )
+            for ( tSampleType &value : mSamples )
             {
                 writer.Double( static_cast< double >( value ) );
             }
@@ -86,13 +82,13 @@ namespace BenchLib
                 if ( mInliers.size() > 1 )
                 {
                     writer.String( "inlierStats" );
-                    ::BenchLib::Serialise( mInlierStats, writer );
+                    ::BenchLib::Serialise< tDataType, tSampleType, tWriter >( mInlierStats, writer );
                 }
 
                 writer.String( "inliers" );
                 writer.StartArray();
 
-                for ( tDataType &value : mInliers )
+                for ( tSampleType &value : mInliers )
                 {
                     writer.Double( static_cast< double >( value ) );
                 }
@@ -102,7 +98,7 @@ namespace BenchLib
                 writer.String( "outliers" );
                 writer.StartArray();
 
-                for ( tDataType &value : mOutliers )
+                for ( tSampleType &value : mOutliers )
                 {
                     writer.Double( static_cast< double >( value ) );
                 }
@@ -120,7 +116,7 @@ namespace BenchLib
 
             for ( auto it = samples.Begin(), end = samples.End(); it != end; ++it )
             {
-                mSamples.push_back( static_cast< tDataType>( it->GetDouble() ) );
+                mSamples.push_back( static_cast< tSampleType>( it->GetDouble() ) );
             }
 
             const bool validSize = IsValid();
@@ -133,7 +129,7 @@ namespace BenchLib
             {
                 if ( validSize )
                 {
-                    ::BenchLib::Deserialise( mSampleStats, reader["sampleStats"] );
+                    ::BenchLib::Deserialise< tDataType, tSampleType >( mSampleStats, reader["sampleStats"] );
                 }
             }
 
@@ -145,35 +141,35 @@ namespace BenchLib
                 }
                 else
                 {
-                    mMedian = static_cast< tDataType>( reader["median"].GetDouble() );
-                    mQ1 = static_cast< tDataType>( reader["Q1"].GetDouble() );
-                    mQ3 = static_cast< tDataType>( reader["Q3"].GetDouble() );
+                    mMedian = static_cast< tSampleType>( reader["median"].GetDouble() );
+                    mQ1 = static_cast< tSampleType>( reader["Q1"].GetDouble() );
+                    mQ3 = static_cast< tSampleType>( reader["Q3"].GetDouble() );
 
                     const rapidjson::Value &outliers = reader["outliers"];
 
                     for ( auto it = outliers.Begin(), end = outliers.End(); it != end; ++it )
                     {
-                        mOutliers.push_back( static_cast< tDataType>( it->GetDouble() ) );
+                        mOutliers.push_back( static_cast< tSampleType>( it->GetDouble() ) );
                     }
 
                     const rapidjson::Value &inliers = reader["inliers"];
 
                     for ( auto it = inliers.Begin(), end = inliers.End(); it != end; ++it )
                     {
-                        mInliers.push_back( static_cast< tDataType>( it->GetDouble() ) );
+                        mInliers.push_back( static_cast< tSampleType>( it->GetDouble() ) );
                     }
 
                     if ( mInliers.size() > 1 )
                     {
-                        ::BenchLib::Deserialise( mInlierStats, reader["inlierStats"] );
+                        ::BenchLib::Deserialise< tDataType, tSampleType >( mInlierStats, reader["inlierStats"] );
                     }
                 }
             }
         }
 
-        void SetSamples( std::vector< tDataType > samples, tDataType correction )
+        void SetSamples( std::vector< tSampleType > samples, tDataType correction )
         {
-            for ( double &value : samples )
+            for ( tSampleType &value : samples )
             {
                 value -= correction;
             }
@@ -181,34 +177,34 @@ namespace BenchLib
             SetSamples( samples );
         }
 
-        void SetSamples( const std::vector< tDataType > &samples )
+        void SetSamples( const std::vector< tSampleType > &samples )
         {
             mSamples = samples;
             CalculateSampleStats();
             CalculatePercentileStats();
         }
 
-        MicroStat< tDataType > GetInlierStats() const
+        MicroStat< tDataType, tSampleType > GetInlierStats() const
         {
             return mInlierStats;
         }
 
-        MicroStat< tDataType > GetSampleStats() const
+        MicroStat< tDataType, tSampleType > GetSampleStats() const
         {
             return mSampleStats;
         }
 
-        tDataType GetMedian() const
+        tSampleType GetMedian() const
         {
             return mMedian;
         }
 
-        tDataType GetQ1() const
+        tSampleType GetQ1() const
         {
             return mQ1;
         }
 
-        tDataType GetQ3() const
+        tSampleType GetQ3() const
         {
             return mQ3;
         }
@@ -218,33 +214,61 @@ namespace BenchLib
             return mSamples.size() > 1;
         }
 
-        const std::vector< tDataType > &GetSamples() const
+        const std::vector< tSampleType > &GetSamples() const
         {
             return mSamples;
         }
 
-        const std::vector< tDataType > &GetInliers() const
+        const std::vector< tSampleType > &GetInliers() const
         {
             return mInliers;
         }
 
-        const std::vector< tDataType > &GetOutliers() const
+        const std::vector< tSampleType > &GetOutliers() const
         {
             return mOutliers;
         }
 
+        std::vector< tSampleType > GetWinsorisedSamples()
+        {
+            std::vector< tSampleType > wsamples( mInliers );
+            wsamples.reserve( wsamples.size() + mOutliers.size() );
+
+            tSampleType lower = mInlierStats.low;
+            tSampleType upper = mInlierStats.high;
+
+            for ( tSampleType outlier : mOutliers )
+            {
+                if ( outlier <= lower )
+                {
+                    wsamples.push_back( lower );
+                }
+                else if ( outlier >= upper )
+                {
+                    wsamples.push_back( upper );
+                }
+                else
+                {
+                    // We could call this situation quite awkward
+                    assert( false );
+                }
+            }
+
+            return wsamples;
+        }
+
     private:
 
-        std::vector< tDataType > mSamples;
-        std::vector< tDataType > mInliers;
-        std::vector< tDataType > mOutliers;
+        std::vector< tSampleType > mSamples;
+        std::vector< tSampleType > mInliers;
+        std::vector< tSampleType > mOutliers;
 
-        MicroStat< tDataType > mInlierStats;
-        MicroStat< tDataType > mSampleStats;
+        MicroStat< tDataType, tSampleType > mInlierStats;
+        MicroStat< tDataType, tSampleType > mSampleStats;
 
-        tDataType mMedian;
-        tDataType mQ1;
-        tDataType mQ3;
+        tSampleType mMedian;
+        tSampleType mQ1;
+        tSampleType mQ3;
 
         void CalculatePercentileStats()
         {
@@ -253,7 +277,7 @@ namespace BenchLib
                 return;
             }
 
-            std::vector< tDataType > sortedSamples( mSamples );
+            std::vector< tSampleType > sortedSamples( mSamples );
             std::sort( sortedSamples.begin(), sortedSamples.end() );
 
             std::size_t size = mSamples.size();
@@ -264,12 +288,11 @@ namespace BenchLib
             mQ1 = CalculateQ( sortedSamples, half - quart );
             mQ3 = CalculateQ( sortedSamples, half + quart );
 
-
             tDataType IQR = mQ3 - mQ1 + std::numeric_limits<tDataType>::epsilon();
-            tDataType lower = mQ1 - 1.5 * IQR;
-            tDataType upper = mQ3 + 1.5 * IQR;
+            tDataType lower = mQ1 - 3.5f * IQR;
+            tDataType upper = mQ3 + 3.5f * IQR;
 
-            for ( tDataType value : sortedSamples )
+            for ( tSampleType value : sortedSamples )
             {
                 if ( lower <= value && value <= upper )
                 {
@@ -283,7 +306,7 @@ namespace BenchLib
 
             if ( mInliers.size() > 1 )
             {
-                Statistics< tDataType > stats( mInliers );
+                Statistics< tDataType, tSampleType > stats( mInliers );
                 mInlierStats.average = stats.GetMean();
                 mInlierStats.standardDeviation = stats.GetStandardDeviation();
                 mInlierStats.variance = stats.GetVariance();
@@ -294,7 +317,7 @@ namespace BenchLib
 
         void CalculateSampleStats()
         {
-            Statistics< tDataType > sampleStats( mSamples );
+            Statistics< tDataType, tSampleType > sampleStats( mSamples );
             mSampleStats.average = sampleStats.GetMean();
             mSampleStats.standardDeviation = sampleStats.GetStandardDeviation();
             mSampleStats.variance = sampleStats.GetVariance();
@@ -302,7 +325,7 @@ namespace BenchLib
             mSampleStats.high = *std::max_element( mSamples.begin(), mSamples.end() );
         }
 
-        static tDataType CalculateQ( const std::vector< tDataType > &data, std::size_t place )
+        static tDataType CalculateQ( const std::vector< tSampleType > &data, std::size_t place )
         {
             if ( ( data.size() % 2 ) != 0 )
             {
