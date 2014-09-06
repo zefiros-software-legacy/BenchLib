@@ -246,6 +246,13 @@ function MenuGroup(ctor)
             this.labels = $("<div>");
             this.labels.addClass("pull-right label-holder");
             this.link.append(this.labels);
+
+            this.AddlabelContent();
+        }
+
+        this.AddlabelContent = function()
+        {
+            this.labels.append(Label.Benchmark(Benchmarks.Type.Page));
         }
 
         __ConstructObject(this, ctor);
@@ -257,19 +264,11 @@ function MenuGroup(ctor)
 
         this.completed = false;
 
-        this.RenderTo = function (element)
+        this.AddlabelContent = function ()
         {
-            this.li = $("<li>");
-
-            this.AddSubPageLink();
-
-            this.AddLabels();
-
             this.labels.append(Label.Status(this.completed));
 
             this.labels.append(Label.Benchmark(Benchmarks.Type.Micro));
-
-            element.append(this.li);
         }
 
         __ConstructObject(this, ctor);
@@ -344,7 +343,13 @@ function SubPage(ctor)
 
         var header = $("<h2>");
         header.addClass("sub-header");
-        header.append(Label.Benchmark(this.GetType()));
+
+        var benchLabel = Label.Benchmark(this.GetType());
+        benchLabel.addClass("pull-right");
+
+        this.Addlabels(header);
+
+        header.append( benchLabel );
         header.append("\t" + this.name);
 
         this.container.append(header);
@@ -362,6 +367,11 @@ function SubPage(ctor)
         this.container.attr("id", this.id);
 
         element.append(this.container);
+    }
+
+    this.Addlabels = function (element)
+    {
+
     }
 
     this.AddContent = function (container)
@@ -402,6 +412,14 @@ function MicroSubPage(ctor)
         AddRaw.call(this);
         AddBaseline.call(this);
         AddMemory.call(this);
+    }
+
+    this.Addlabels = function(element)
+    {
+        var statusLabel = Label.Status(this.benchmark.current.completed);
+        statusLabel.addClass("pull-right");
+
+        element.append(statusLabel);
     }
 
     this.AddContent = function (container)
