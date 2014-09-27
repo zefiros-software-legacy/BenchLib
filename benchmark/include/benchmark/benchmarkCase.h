@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #pragma once
 #ifndef __BENCHLIB__IBENCHMARKCASE_H__
 #define __BENCHLIB__IBENCHMARKCASE_H__
@@ -28,12 +29,15 @@
 namespace BenchLib
 {
 
-    class IBenchmarkCase
+    class BenchmarkCase
     {
     public:
 
-        virtual void RunSamples() = 0;
-        virtual void RunBaseline() = 0;
+        virtual void OnInit() = 0;
+
+        virtual void OnRun() = 0;
+
+        virtual void OnFinalise() = 0;
 
         virtual double GetSampleDuration() const = 0;
         virtual double GetBaselineDuration() const = 0;
@@ -44,6 +48,8 @@ namespace BenchLib
 
         virtual std::string GetName() const = 0;
         virtual std::string GetGroup() const = 0;
+
+        virtual uint32_t GetRegression() const = 0;
 
         virtual bool IsCompleted() const = 0;
         virtual void SetCompleted( bool isCompleted ) = 0;

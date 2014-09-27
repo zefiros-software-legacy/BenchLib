@@ -146,6 +146,8 @@ namespace BenchLib
     }
 }
 
+#ifndef BENCHLIB_DISABLE_MEMPROFILE
+
 void *operator new( std::size_t size, const char *file, std::size_t line )
 {
     void *ptr = operator new( size );
@@ -181,5 +183,7 @@ void operator delete[]( void *ptr )
 }
 
 #define new new(__FILE__, __LINE__)
+
+#endif
 
 #endif

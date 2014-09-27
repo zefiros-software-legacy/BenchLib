@@ -21,395 +21,482 @@
  */
 
 #pragma once
-#ifndef __BENCHLIB__BENCHMARK_H__
-#define __BENCHLIB__BENCHMARK_H__
+#ifndef __BENCHLIB__MICROBENCHMARK_H__
+#define __BENCHLIB__MICROBENCHMARK_H__
 
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/reader.h"
-
-#include "benchmark/memory.h"
-
-#include "benchmark/micro/microBenchmark.h"
+#include "benchmark/benchmarkResult.h"
+#include "benchmark/benchmarkCase.h"
+#include "benchmark/benchmarkData.h"
+#include "benchmark/regression.h"
+#include "benchmark/console.h"
 #include "benchmark/config.h"
-#include "benchmark/group.h"
 #include "benchmark/timer.h"
+#include "benchmark/util.h"
 
-#include <unordered_map>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <limits>
-
-// Silly silly msvc....
-#undef max
+#include <vector>
+#include <cmath>
 
 namespace BenchLib
 {
-    class BenchmarkIntern
+
+    class Benchmark
+        : public BenchmarkCase
     {
     public:
 
-        int32_t RunBenchmarks( int argc, char *argv[] )
+        struct Case
         {
-            mCmdBegin = argv;
-            mCmdEnd   = argv + argc;
-
-            if ( HasCmdOption( "in" ) )
+            virtual void Run()
             {
-                const std::string file = GetCmdOption( "in" );
 
-                Deserialise( file );
             }
 
-            SetTimestamp();
-
-
-            const bool success = RunBenchmarkSuites();
-
-            if ( HasCmdOption( "out" ) )
+            virtual void Baseline()
             {
-                const std::string file = GetCmdOption( "out" );
 
-                Serialise( file, HasCmdOption( "v" ) );
             }
 
-            return success ? 0 : -1;
+            virtual void Init()
+            {
+
+            }
+
+            virtual void Finalise()
+            {
+
+            }
+        };
+
+        Benchmark()
+            : mCase( nullptr )
+        {
+
         }
 
-        void Serialise( const std::string &file, bool viewerCompatible )
+        Benchmark( Case *benchCase )
+            : mCase( benchCase )
         {
-            std::ofstream stream( file );
 
-            if ( stream.is_open() )
-            {
-                if ( viewerCompatible )
-                {
-                    stream << "var " BENCHLIB_VIEWER_VAR << " = ";
-                }
-
-                OFStream ostream( stream );
-                rapidjson::Writer<OFStream> writer( ostream );
-
-                writer.StartObject();
-
-                writer.String( "groups" );
-                writer.StartArray();
-
-                for ( auto &it : mGroups )
-                {
-                    it.second.Serialise( writer );
-                }
-
-                writer.EndArray();
-
-                writer.String( "config" );
-                ::BenchLib::Serialise( gConfig, writer );
-
-                writer.EndObject();
-            }
         }
 
-        void Deserialise( const std::string &file )
+        template< typename tWriter >
+        void Serialise( tWriter &writer )
         {
-            std::ifstream stream( file );
+            writer.StartObject();
 
-            if ( stream.is_open() )
+            writer.String( "name" );
+            writer.String( GetName().c_str() );
+
+            writer.String( "current" );
+            mCurrent.Serialise<tWriter >( writer );
+
+            writer.String( "history" );
+            writer.StartArray();
+
+            for ( auto it = mHistory.rbegin(), end = mHistory.rend(); it != end; ++it )
             {
-                stream.ignore( 100, '{' );
-                const std::size_t pos = stream.tellg();
-                stream.seekg( pos - 1 );
+                it->Serialise<tWriter >( writer );
+            }
 
-                IFStream istream( stream );
-                rapidjson::Document reader;
-                reader.ParseStream<0, rapidjson::UTF8<>, IFStream>( istream );
+            writer.EndArray();
 
-                if ( reader.HasMember( "config" ) )
+            writer.EndObject();
+        }
+
+        template< typename tReader >
+        void Deserialise( tReader &reader )
+        {
+            mShadowName = reader["name"].GetString();
+
+            const rapidjson::Value &results = reader["history"];
+
+            for ( auto it = results.Begin(), end = results.End(); it != end; ++it )
+            {
+                BenchmarkResult<> result;
+
+                result.Deserialise< tReader >( *it );
+
+                mHistory.emplace_back( result );
+            }
+
+            const std::size_t size = mHistory.size();
+            const std::size_t maxHist = gConfig.microMaxHistory - 1;
+            const std::size_t newSize = size > maxHist ? maxHist : size;
+            mHistory = std::vector< BenchmarkResult<> >( mHistory.begin() + size - newSize, mHistory.end() );
+
+            BenchmarkResult<> current;
+
+            current.Deserialise<tReader >( reader["current"] );
+
+            mHistory.emplace_back( current );
+
+            std::reverse( mHistory.begin(), mHistory.end() );
+        }
+
+        virtual void OnInit()
+        {
+            mCurrent.SetMemoryProfile( IsProfileMemoryEnabled() );
+            mCurrent.SetTimestamp( gConfig.timestamp );
+            mCurrent.SetWingsorise( GetWingsorise() );
+            mCurrent.SetSampleCount( GetSampleCount() );
+        }
+
+        virtual void OnRun()
+        {
+            if ( IsProfileMemoryEnabled() )
+            {
+                RunMemorySamples();
+                RunMemoryBaseline();
+            }
+
+            RunTime();
+        }
+
+        virtual void OnFinalise()
+        {
+
+        }
+
+        virtual void Analyse()
+        {
+            Console::Baseline( GetOverhead() );
+
+            Console::PrintResult();
+            Console::Result( mCurrent.GetTimeSamples().GetSampleStats() );
+
+            Console::PrintResultCorrected();
+            Console::Result( mCurrent.GetTimeCorrected().GetSampleStats() );
+
+            uint32_t regression = ( uint32_t )Regression::None;
+
+            std::vector< BenchmarkResult<> * > completedResults = GetCompletedResults();
+
+            if ( !completedResults.empty() )
+            {
+                Statistics<double>::ConfidenceInterval histInterval;
+
+                std::vector< Statistics<double>::StatHistory > history;
+
+                for ( BenchmarkResult<> *result : completedResults )
                 {
-                    ::BenchLib::Deserialise( gConfig, reader["config"] );
-                }
+                    BenchmarkData< double, double > &timeCorrected = result->GetTimeCorrected();
 
-                const rapidjson::Value &groups = reader["groups"];
+                    BenchmarkStat<double> sampleStat;
 
-                for ( auto it = groups.Begin(), end = groups.End(); it != end; ++it )
-                {
-                    const std::string name = ( *it )["name"].GetString();
-
-                    auto fit = mGroups.find( name );
-
-                    if ( fit == mGroups.end() )
+                    if ( GetWingsorise() )
                     {
-                        Group group;
-                        group.Deserialise( *it );
-                        mGroups.emplace( name, name );
+                        sampleStat = timeCorrected.GetWingsorisedStats();
                     }
                     else
                     {
-                        fit->second.Deserialise( *it );
+                        sampleStat = timeCorrected.GetSampleStats();
+                    }
+
+                    Statistics<double>::StatHistory stat;
+                    stat.average = sampleStat.average;
+                    stat.variance = sampleStat.variance;
+                    stat.sampleCount = result->GetSampleCount();
+                    history.push_back( stat );
+                }
+
+                Statistics<double>::GetConfidenceInterval( history, histInterval );
+
+
+                Statistics<double>::ConfidenceInterval currentInterval;
+
+                if ( !GetWingsorise() )
+                {
+                    BenchmarkStat<double> stats = mCurrent.GetTimeCorrected().GetSampleStats();
+                    Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
+                            currentInterval );
+                }
+                else
+                {
+                    BenchmarkStat<double> stats = mCurrent.GetTimeCorrected().GetWingsorisedStats();
+                    Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
+                            currentInterval );
+                }
+
+                if ( currentInterval.upper < histInterval.lower )
+                {
+                    regression |= ( uint32_t )Regression::TimeFaster;
+                    Console::RegressTimeFaster( histInterval.lower, histInterval.upper, currentInterval.upper );
+                }
+                else if ( currentInterval.lower > histInterval.upper )
+                {
+                    regression |= ( uint32_t )Regression::TimeSlower;
+                    Console::RegressTimeSlower( histInterval.lower, histInterval.upper, currentInterval.lower );
+                }
+            }
+
+            if ( IsProfileMemoryEnabled() )
+            {
+                std::vector< Statistics<double, int64_t>::StatHistory > history;
+                std::vector< int64_t > peaks;
+
+                for ( BenchmarkResult<> *result : completedResults )
+                {
+                    std::size_t sampleCount = result->GetMemoryCorrected().GetSamples().size();
+
+                    BenchmarkStat<double, int64_t> sampleStat = result->GetMemoryCorrected().GetSampleStats();
+
+                    if ( result->GetMemoryProfile() && sampleCount > 0 )
+                    {
+                        Statistics<double, int64_t>::StatHistory stat;
+                        stat.average = sampleStat.average;
+                        stat.variance = sampleStat.variance;
+                        stat.sampleCount = sampleCount;
+
+                        history.push_back( stat );
+                    }
+
+                    peaks.push_back( sampleStat.high );
+                }
+
+                if ( !history.empty() )
+                {
+                    Statistics<double, int64_t>::ConfidenceInterval interval;
+                    Statistics<double, int64_t>::GetConfidenceInterval( history, interval );
+
+                    BenchmarkStat< double, int64_t > stats = mCurrent.GetMemoryCorrected().GetSampleStats();
+                    double average = stats.average;
+
+                    if ( average < interval.lower )
+                    {
+                        regression |= ( uint32_t )Regression::MemSmaller;
+                        Console::RegressMemSmaller( interval.lower, interval.upper, average );
+                    }
+                    else if ( average > interval.upper )
+                    {
+                        regression |= ( uint32_t )Regression::MemLarger;
+                        Console::RegressMemLarger( interval.lower, interval.upper, average );
+                    }
+
+                    BenchmarkData< double, int64_t > peakData;
+                    peakData.SetSamples( peaks );
+                    BenchmarkStat< double, int64_t > peakStats = peakData.GetSampleStats();
+
+                    Statistics<double, int64_t>::ConfidenceInterval peakInterval;
+                    Statistics<double, int64_t>::GetConfidenceInterval( peakStats.standardDeviation, peaks.size(), peakStats.average,
+                            peakInterval );
+
+                    if ( stats.high < peakInterval.lower )
+                    {
+                        regression |= ( uint32_t )Regression::PeakMemSmaller;
+                        Console::RegressPeakMemSmaller( peakInterval.lower, peakInterval.upper, stats.high );
+                    }
+                    else if ( stats.high > peakInterval.upper )
+                    {
+                        regression |= ( uint32_t )Regression::PeakMemLarger;
+                        Console::RegressPeakMemLarger( peakInterval.lower, peakInterval.upper, stats.high );
                     }
                 }
             }
+
+            mCurrent.SetRegression( regression );
         }
 
-        bool RegisterMicroBenchmark( const std::string &group, MicroBenchmark *benchCase )
+        virtual bool IsCompleted() const
         {
-            CheckGroup( group );
-
-            return mGroups[group].AddMicroBenchmark( benchCase );
+            return mCurrent.IsCompleted();
         }
 
-        static BenchmarkIntern &GetInstance()
+        virtual void SetCompleted( bool isCompleted )
         {
-            static BenchmarkIntern mBenchmark;
-            return mBenchmark;
+            mCurrent.SetCompleted( isCompleted );
+        }
+
+        virtual double GetSampleDuration() const
+        {
+            return mSampleDuration;
+        }
+
+        virtual double GetBaselineDuration() const
+        {
+            return mBaselineDuration;
+        }
+
+        std::size_t GetOperationCount() const
+        {
+            return mCurrent.GetOperationCount();
+        }
+
+        void CalculateOperationCount()
+        {
+            const uint64_t minTimeRequiredPerUnit = 10;
+            size_t operationCount = 0;
+
+            const TimePoint start = Clock::now();
+
+            while ( Timer<std::chrono::milliseconds>::GetDuration( start ).count() < minTimeRequiredPerUnit )
+            {
+                ++operationCount;
+
+                RunSamples();
+            }
+
+            mCurrent.SetOperationCount( operationCount );
+
+            Console::Stats( GetSampleCount(), GetOperationCount() );
+        }
+
+        std::size_t GetSampleCount() const
+        {
+            assert( false );
+            return 0;
+        }
+
+        bool GetWingsorise() const
+        {
+            return gConfig.winsoriseAnalysis;
+        }
+
+        uint32_t GetRegression() const
+        {
+            return mCurrent.GetRegression();
+        }
+
+        std::string GetName() const
+        {
+            return mShadowName;
+        }
+
+        std::string GetGroup() const
+        {
+            assert( false );
+            return "";
+        }
+
+        virtual bool IsProfileMemoryEnabled() const
+        {
+            return false;
+        }
+
+        virtual bool IsShadow() const
+        {
+            return true;
         }
 
     private:
 
-        std::unordered_map< std::string, Group > mGroups;
+        std::vector< BenchmarkResult<> > mHistory;
 
-        char **mCmdBegin;
-        char **mCmdEnd;
+        BenchmarkResult< true > mCurrent;
 
-        BenchmarkIntern()
+        std::string mShadowName;
+
+        Case *mCase;
+
+        double mBaselineDuration;
+        double mSampleDuration;
+
+        void RunMemorySamples()
         {
+            std::vector< int64_t > samples;
+            Memory::GetInstance().StartProfile();
+
+            RunSamples();
+
+            Memory::GetInstance().EndProfile( samples, mCurrent.GetMemoryLeaks() );
+
+            mCurrent.GetMemorySamples().SetSamples( samples );
+            mCurrent.GetMemoryCorrected().SetSamplesForCorrection( mCurrent.GetMemorySamples(), mCurrent.GetMemoryBaseline() );
         }
 
-        BenchmarkIntern( BenchmarkIntern & );
-        BenchmarkIntern &operator=( BenchmarkIntern & );
-
-        std::string GetCmdOption( const std::string &option )
+        void RunTime()
         {
-            if ( option[0] != '-' && option[0] != '/' )
-            {
-                const std::string unix = GetCmdOption( "-" + option );
+            const std::size_t sampleCount = GetSampleCount();
+            const std::size_t operationCount = GetOperationCount();
+            std::vector<double> samples( sampleCount );
+            std::vector<double> baseline( sampleCount );
 
-                if ( unix == "" )
+
+            for ( volatile std::size_t i = 0; i < sampleCount; ++i )
+            {
                 {
-                    return GetCmdOption( "/" + option );
+                    TimePoint startTime = Clock::now();
+
+                    for ( volatile std::size_t j = 0; j < operationCount; ++j )
+                    {
+                        RunBaseline();
+                    }
+
+                    baseline[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
                 }
-                else
+
                 {
-                    return unix;
-                }
-            }
+                    TimePoint startTime = Clock::now();
 
-            char **it = std::find( mCmdBegin, mCmdEnd, option );
+                    for ( volatile std::size_t j = 0; j < operationCount; ++j )
+                    {
+                        RunSamples();
+                    }
 
-            if ( it != mCmdEnd && ++it != mCmdEnd )
-            {
-                return *it;
-            }
-
-            return "";
-        }
-
-        bool HasCmdOption( const std::string &option )
-        {
-            if ( option[0] != '-' && option[0] != '/' )
-            {
-                return HasCmdOption( "-" + option ) || HasCmdOption( "/" + option );
-            }
-
-            return std::find( mCmdBegin, mCmdEnd, option ) != mCmdEnd;
-        }
-
-        void SetTimestamp()
-        {
-            const std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-            std::time_t now_c = std::chrono::system_clock::to_time_t( now );
-
-#pragma warning(push)
-#pragma warning(disable:4996)
-            char buffer[32];
-            std::strftime( buffer, 32, "%d-%m-%Y %H:%M:%S", std::localtime( &now_c ) );
-#pragma warning(pop)
-
-            gConfig.timestamp = buffer;
-        }
-
-        void CheckGroup( const std::string &group )
-        {
-            auto it = mGroups.find( group );
-
-            if ( it == mGroups.end() )
-            {
-                mGroups.emplace( group, group );
-            }
-        }
-
-        std::size_t GetBenchmarkCount() const
-        {
-            std::size_t count = 0;
-
-            for ( auto &it : mGroups )
-            {
-                count += it.second.GetCount();
-            }
-
-            return count;
-        }
-
-        std::vector< std::pair<std::string, std::string > > GetFailed()
-        {
-            std::vector< std::pair<std::string, std::string > > failed;
-
-            for ( auto &it : mGroups )
-            {
-                for ( std::string &name : it.second.GetFailedNames() )
-                {
-                    failed.emplace_back( it.first, name );
+                    samples[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
                 }
             }
 
-            return failed;
+            mBaselineDuration = std::accumulate( baseline.begin(), baseline.end(), 0.0f );
+
+            mCurrent.GetTimeBaseline().SetSamples( baseline );
+
+
+            mCurrent.GetTimeSamples().SetSamples( samples );
+            mCurrent.GetTimeCorrected().SetSamplesForCorrection( mCurrent.GetTimeSamples(), mCurrent.GetTimeBaseline() );
+
+            mSampleDuration = std::accumulate( samples.begin(), samples.end(), 0.0f );
         }
 
-        bool RunBenchmarkSuites()
+        void RunMemoryBaseline()
         {
-            std::size_t benchmarkCount = GetBenchmarkCount();
-            std::size_t groupCount = mGroups.size();
+            std::vector< int64_t > samples;
+            Memory::GetInstance().StartProfile();
 
-            Console::Init( benchmarkCount, groupCount );
-            TimePoint start = Clock::now();
+            RunBaseline();
 
-            bool failed = false;
+            Memory::GetInstance().EndProfile( samples );
 
-            for ( auto &it : mGroups )
+            if ( samples.size() > 1 )
             {
-                Group &group = it.second;
-                failed |= !group.RunBenchmarks();
+                mCurrent.GetMemoryBaseline().SetSamples( samples );
             }
-
-            Console::End( benchmarkCount, groupCount, Timer<std::chrono::milliseconds>::GetDuration( start ),
-                          GetFailed() );
-
-            return !failed;
         }
 
-        class IFStream
+        virtual double GetOverhead() const
         {
-        public:
+            return mCurrent.GetTimeBaseline().GetSampleStats().average;
+        }
 
-            typedef char Ch;
-
-            IFStream( std::istream &is )
-                : mStream( is )
-            {
-            }
-
-            char Peek() const
-            {
-                int32_t c = mStream.peek();
-                return c == std::char_traits<char>::eof() ? '\0' : static_cast< char >( c );
-            }
-
-            char Take()
-            {
-                int32_t c = mStream.get();
-                return c == std::char_traits<char>::eof() ? '\0' : static_cast< char >( c );
-            }
-
-            std::size_t Tell() const
-            {
-                return ( size_t )mStream.tellg();
-            }
-
-            char *PutBegin()
-            {
-                return nullptr;
-            }
-
-            void Put( char )
-            {
-
-            }
-
-            void Flush()
-            {
-
-            }
-
-            std::size_t PutEnd( char * )
-            {
-                return 0;
-            }
-
-        private:
-
-            IFStream( const IFStream & );
-            IFStream &operator=( const IFStream & );
-
-            std::istream &mStream;
-        };
-
-        class OFStream
+        std::vector< BenchmarkResult<> * > GetCompletedResults()
         {
-        public:
+            std::vector< BenchmarkResult<> * > results;
 
-            typedef char Ch;
-
-            OFStream( std::ostream &os )
-                : mStream( os )
+            for ( BenchmarkResult<> &result : mHistory )
             {
+                if ( result.IsCompleted() )
+                {
+                    results.push_back( &result );
+                }
             }
 
-            char Peek() const
-            {
-                return '\0';
-            }
+            return results;
+        }
 
-            char Take()
-            {
-                return '\0';
-            }
+        inline void RunSamples()
+        {
+            mCase->Init();
+            mCase->Run();
+            mCase->Finalise();
+        }
 
-            std::size_t Tell() const
-            {
-            }
+        inline void RunBaseline()
+        {
+            mCase->Init();
+            mCase->Baseline();
+            mCase->Finalise();
+        }
 
-            char *PutBegin()
-            {
-                return NULL;
-            }
-
-            void Put( char c )
-            {
-                mStream.put( c );
-            }
-
-            void Flush()
-            {
-                mStream.flush();
-            }
-
-            std::size_t PutEnd( char * )
-            {
-                return 0;
-            }
-
-        private:
-
-            OFStream( const OFStream & );
-            OFStream &operator=( const OFStream & );
-
-            std::ostream &mStream;
-        };
     };
-
-    static bool RegisterMicroBenchmark( const std::string &group, MicroBenchmark *benchCase )
-    {
-        BenchmarkIntern &benchmark = BenchmarkIntern::GetInstance();
-        return benchmark.RegisterMicroBenchmark( group, benchCase );
-    }
-
-    static int32_t RunAll( int argc, char *argv[] )
-    {
-        BenchmarkIntern &benchmark = BenchmarkIntern::GetInstance();
-        return benchmark.RunBenchmarks( argc, argv );
-    }
 
 }
 

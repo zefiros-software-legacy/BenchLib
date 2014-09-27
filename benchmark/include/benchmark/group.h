@@ -23,7 +23,7 @@
 #ifndef __BENCHLIB__GROUP_H__
 #define __BENCHLIB__GROUP_H__
 
-#include "benchmark/micro/microBenchmark.h"
+#include "benchmark/benchmark.h"
 #include "benchmark/benchmarkGroup.h"
 #include "benchmark/console.h"
 
@@ -69,7 +69,7 @@ namespace BenchLib
             mMicros.Deserialise( reader["micros"] );
         }
 
-        bool AddMicroBenchmark( MicroBenchmark *benchmark )
+        bool AddMicroBenchmark( Benchmark *benchmark )
         {
             if ( !mMicros.AddBenchmark( benchmark ) )
             {
@@ -108,12 +108,24 @@ namespace BenchLib
         {
             std::vector< std::string > failed;
 
-            for ( const MicroBenchmark *const bench : mMicros.GetFailed() )
+            for ( const Benchmark *const bench : mMicros.GetFailed() )
             {
                 failed.push_back( bench->GetName() );
             }
 
             return failed;
+        }
+
+        std::vector< std::string > GetRegressedNames() const
+        {
+            std::vector< std::string > regressed;
+
+            for ( const Benchmark *const bench : mMicros.GetRegressed() )
+            {
+                regressed.push_back( bench->GetName() );
+            }
+
+            return regressed;
         }
 
         std::size_t GetCount() const
@@ -128,7 +140,7 @@ namespace BenchLib
 
     private:
 
-        BenchmarkGroup< MicroBenchmark > mMicros;
+        BenchmarkGroup< Benchmark > mMicros;
 
         std::chrono::milliseconds mDuration;
 

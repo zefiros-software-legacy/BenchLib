@@ -27,7 +27,7 @@ namespace BenchLib
 {
 
     template< typename tDataType, typename tSampleType = tDataType >
-    struct MicroStat
+    struct BenchmarkStat
     {
         tDataType average;
         tDataType standardDeviation;
@@ -35,7 +35,7 @@ namespace BenchLib
         tSampleType low;
         tSampleType high;
 
-        MicroStat()
+        BenchmarkStat()
             : average( 0 ),
               standardDeviation( 0 ),
               variance( 0 ),
@@ -46,7 +46,7 @@ namespace BenchLib
     };
 
     template< typename tDataType, typename tSampleType, typename tWriter >
-    void Serialise( MicroStat<tDataType, tSampleType> &result, tWriter &writer )
+    void Serialise( BenchmarkStat<tDataType, tSampleType> &result, tWriter &writer )
     {
         writer.StartObject();
 
@@ -69,7 +69,7 @@ namespace BenchLib
     }
 
     template< typename tDataType, typename tSampleType, typename tReader >
-    void Deserialise( MicroStat<tDataType, tSampleType> &result, tReader &reader )
+    void Deserialise( BenchmarkStat<tDataType, tSampleType> &result, tReader &reader )
     {
         result.average = static_cast< tDataType >( reader["average"].GetDouble() );
         result.standardDeviation = static_cast< tDataType >( reader["standardDeviation"].GetDouble() );

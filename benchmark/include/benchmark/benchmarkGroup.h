@@ -77,7 +77,7 @@ namespace BenchLib
 
                 if ( fit == mAll.end() )
                 {
-                    MicroBenchmark *benchmark = new MicroBenchmark();
+                    Benchmark *benchmark = new Benchmark();
                     benchmark->Deserialise( *it );
                     AddBenchmark( benchmark );
 
@@ -108,13 +108,15 @@ namespace BenchLib
 
                 try
                 {
+                    benchmark->OnInit();
+
                     benchmark->CalculateOperationCount();
 
-                    benchmark->RunBaseline();
-
-                    benchmark->RunSamples();
+                    benchmark->OnRun();
 
                     benchmark->Analyse();
+
+                    benchmark->OnFinalise();
 
                     SetCompleted( benchmark, name );
                 }
@@ -151,6 +153,21 @@ namespace BenchLib
         const std::vector< tBenchmarkType * > &GetFailed() const
         {
             return mFailed;
+        }
+
+        const std::vector< tBenchmarkType * > GetRegressed() const
+        {
+            std::vector< tBenchmarkType * > regressed;
+
+            for ( tBenchmarkType *completed : mCompleted )
+            {
+                if ( completed->GetRegression() != ( uint32_t )Regression::None )
+                {
+                    regressed.push_back( completed );
+                }
+            }
+
+            return regressed;
         }
 
         const std::vector< tBenchmarkType * > &GetCompleted() const

@@ -24,7 +24,7 @@
 #ifndef __BENCHLIB__CONSOLE_H__
 #define __BENCHLIB__CONSOLE_H__
 
-#include "benchmark/micro/microStat.h"
+#include "benchmark/benchmarkStat.h"
 
 #include <algorithm>
 #include <iostream>
@@ -246,7 +246,7 @@ namespace BenchLib
             PrintRegressed();
             std::cout << "Ran slower than expected:\tExpected Range: ["
                       << std::fixed << std::setprecision( gPrecision ) << lower << ", "
-                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tLower Bound: "
                       << std::fixed << std::setprecision( gPrecision ) << average
                       << std::endl;
         }
@@ -256,7 +256,7 @@ namespace BenchLib
             PrintRegressed();
             std::cout << "Ran faster than expected:\tExpected Range: ["
                       << std::fixed << std::setprecision( gPrecision ) << lower << ", "
-                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tAVG: "
+                      << std::fixed << std::setprecision( gPrecision ) << upper << "]\tUpper Bound: "
                       << std::fixed << std::setprecision( gPrecision ) << average
                       << std::endl;
         }
@@ -300,7 +300,7 @@ namespace BenchLib
         }
 
         template< typename tT, typename tSample >
-        inline void Result( MicroStat< tT, tSample > stats )
+        inline void Result( BenchmarkStat< tT, tSample > stats )
         {
             std::cout << "AVG: " << std::fixed << std::setprecision( gPrecision ) << stats.average <<
                       "\tSD: " << std::fixed << std::setprecision( gPrecision ) << stats.standardDeviation <<
@@ -330,7 +330,8 @@ namespace BenchLib
         }
 
         inline void End( std::size_t totalBenchmarks, std::size_t totalGroups, std::chrono::milliseconds totalTime,
-                         const std::vector< std::pair< std::string, std::string > > &failed )
+                         const std::vector< std::pair< std::string, std::string > > &failed,
+                         const std::vector< std::pair< std::string, std::string > > &regressed )
         {
             PrintSubheader();
             std::cout << "Global benchmark environment tear-down" << std::endl;
@@ -349,16 +350,39 @@ namespace BenchLib
                 PrintFail();
                 std::cout << GetBenchmarkAmount( totalFailedBenchmarks ) << ", listed below:" << std::endl;
 
-                for ( auto it = failed.begin(), end = failed.end(); it != end; ++it )
+                for ( auto &it : failed )
                 {
                     PrintFail();
-                    const std::pair< std::string, std::string > &bench = *it;
-                    std::cout << bench.first << "." << bench.second << std::endl;
+                    std::cout << it.first << "." << it.second << std::endl;
                 }
             }
 
-            std::cout << totalFailedBenchmarks << " FAILED " << ( ( totalFailedBenchmarks > 1 ) ? "BENCHMARKS" : "BENCHMARK" ) <<
-                      std::endl;
+
+            const std::size_t totalRegressedBenchmarks = regressed.size();
+
+            if ( totalRegressedBenchmarks > 0 )
+            {
+                PrintRegressed();
+                std::cout << GetBenchmarkAmount( totalRegressedBenchmarks ) << ", listed below:" << std::endl;
+
+                for ( auto &it : regressed )
+                {
+                    PrintRegressed();
+                    std::cout << it.first << "." << it.second << std::endl;
+                }
+            }
+
+            if ( totalFailedBenchmarks > 0 )
+            {
+                std::cout << totalFailedBenchmarks << " FAILED " << ( ( totalFailedBenchmarks > 1 ) ? "BENCHMARKS" : "BENCHMARK" ) <<
+                          std::endl;
+            }
+
+            if ( totalRegressedBenchmarks > 0 )
+            {
+                std::cout << totalRegressedBenchmarks << " REGRESSED " << ( ( totalRegressedBenchmarks > 1 ) ? "BENCHMARKS" :
+                          "BENCHMARK" ) << std::endl;
+            }
         }
 
     }

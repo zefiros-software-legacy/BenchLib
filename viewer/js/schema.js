@@ -58,7 +58,7 @@ var SchemaMicroResultFailed = schema({
 
 var SchemaMicroDataComplete = schema({
     "?sampleStats": SchemaMicroStat,
-    "samples": Array.of(2, Number)
+    "?samples": Array.of(2, Number)
 });
 
 var SchemaMicroDataSmall = schema({
@@ -67,23 +67,23 @@ var SchemaMicroDataSmall = schema({
 
 var SchemaMicroDataCompleteAnalysed = schema({
     "sampleStats": SchemaMicroStat,
-    "samples": Array.of(2, Number.MAX_VALUE, Number),
+    "?samples": Array.of(2, Number.MAX_VALUE, Number),
     "median": Number,
     "Q1": Number,
     "Q3": Number,
     "inlierStats": SchemaMicroStat,
-    "inliers": Array.of(Number),
-    "outliers": Array.of(Number)
+    "?inliers": Array.of(Number),
+    "?outliers": Array.of(Number)
 });
 
 var SchemaMicroDataCompleteAnalysedNoInliers = schema({
     "sampleStats": SchemaMicroStat,
-    "samples": Array.of(2, Number.MAX_VALUE, Number),
+    "?samples": Array.of(2, Number.MAX_VALUE, Number),
     "median": Number,
     "Q1": Number,
     "Q3": Number,
-    "inliers": Array.of(0, Number),
-    "outliers": Array.of(Number)
+    "?inliers": Array.of(0, Number),
+    "?outliers": Array.of(Number)
 });
 
 var SchemaMicroStat = schema({

@@ -31,7 +31,7 @@
 
 namespace BenchLib
 {
-    template< typename tDataType, typename tSampleType = tDataType >
+    template< typename tDataType, typename tSampleType = tDataType, bool sample = true >
     class Statistics
     {
     public:
@@ -53,7 +53,7 @@ namespace BenchLib
         {
             mMean = CalculateMean( data );
             mVariance = CalculateVariance( data, mMean );
-            mStandardDeviation = std::sqrt( mVariance );
+            mStandardDeviation = CalculateStandardDeviation( mVariance );
         }
 
         tDataType GetMean() const
@@ -71,6 +71,41 @@ namespace BenchLib
             return mStandardDeviation;
         }
 
+        static tDataType CalculateStandardDeviation( tDataType variance )
+        {
+            return std::sqrt( variance );
+        }
+
+        static tDataType CalculateMean( const std::vector< tSampleType > &data )
+        {
+            if ( !data.empty() )
+            {
+                return std::accumulate( data.begin(), data.end(), 0.0f ) / data.size();
+            }
+
+            return 0;
+        }
+
+        static tDataType CalculateCovariance( const std::vector< tSampleType > &samples, tDataType sampleMean,
+                                              const std::vector< tSampleType > &baseline, tDataType baselineMean )
+        {
+            const std::size_t sampleSize = samples.size();
+
+            if ( sampleSize > 1 && sampleSize == baseline.size() )
+            {
+                tDataType temp = 0;
+
+                for ( std::size_t i = 0; i < sampleSize; ++i )
+                {
+                    temp += ( samples[i] - sampleMean ) * ( baseline[i] - baselineMean );
+                }
+
+                return temp / GetSize( sampleSize );
+            }
+
+            return 0.0f;
+        }
+
         static void GetConfidenceInterval( std::vector< StatHistory > &history, ConfidenceInterval &interval )
         {
             std::size_t historySampleSize = 0;
@@ -81,7 +116,8 @@ namespace BenchLib
             {
                 historySampleSize += stat.sampleCount;
                 scaledHistoryMean += stat.sampleCount * stat.average;
-                scaledHistoryPooledVariance += ( stat.sampleCount - 1 ) * stat.variance;
+
+                scaledHistoryPooledVariance += GetSize( stat.sampleCount ) * stat.variance;
             }
 
             tDataType historyPooledStdev = std::sqrt( scaledHistoryPooledVariance / historySampleSize );
@@ -131,16 +167,6 @@ namespace BenchLib
         tDataType mVariance;
         tDataType mMean;
 
-        tDataType CalculateMean( const std::vector< tSampleType > &data ) const
-        {
-            if ( !data.empty() )
-            {
-                return std::accumulate( data.begin(), data.end(), 0.0f ) / data.size();
-            }
-
-            return 0;
-        }
-
         tDataType CalculateVariance( const std::vector< tSampleType > &data, tDataType mean ) const
         {
             if ( data.size() > 1 )
@@ -153,7 +179,9 @@ namespace BenchLib
                     temp += valueSqrt * valueSqrt;
                 }
 
-                return temp / ( data.size() - 1 );
+
+
+                return temp / GetSize( data.size() );
             }
 
             return 0.0f;
@@ -168,6 +196,11 @@ namespace BenchLib
             tDataType d[] = {1.432788, 0.189269, 0.001308};
             return t - ( ( c[2] * t + c[1] ) * t + c[0] ) /
                    ( ( ( d[2] * t + d[1] ) * t + d[0] ) * t + 1.0 );
+        }
+
+        static std::size_t GetSize( std::size_t size )
+        {
+            return sample ? size - 1 : size;
         }
     };
 

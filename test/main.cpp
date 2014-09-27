@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 
-#include "benchmark/benchmark.h"
+#include "benchmark/benchLib.h"
 
 #include <chrono>
 #include <thread>
@@ -49,6 +49,32 @@ MICRO( Test2, Test1, 200, true )
     delete[] new uint32_t[32];
     std::this_thread::sleep_for( std::chrono::milliseconds( 7 ) );
 }
+
+
+EXTMICRO( Test, Test3, 200, true,
+{
+    uint32_t *sleep;
+
+    void Init()
+    {
+        sleep = new uint32_t( 5 );
+    }
+
+    void Baseline()
+    {
+
+    }
+
+    void Finalise()
+    {
+        delete sleep;
+    }
+
+    void Run()
+    {
+        std::this_thread::sleep_for( std::chrono::milliseconds( *sleep ) );
+    }
+} )
 
 int main( int argc, char *argv[] )
 {
