@@ -345,9 +345,9 @@ namespace BenchLib
 
         void SetWingsorise( bool val )
         {
-            mTimeSamples.SetWingsorise( val );
-            mTimeBaseline.SetWingsorise( val );
-            mTimeCorrected.SetWingsorise( val );
+            mTimeSamples.SetWinsorise( val );
+            mTimeBaseline.SetWinsorise( val );
+            mTimeCorrected.SetWinsorise( val );
         }
 
     private:

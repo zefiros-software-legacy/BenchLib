@@ -33,10 +33,12 @@ namespace BenchLib
 #define BENCHLIB_MICRO_ALPHA 0.02
 #define BENCHLIB_WINSORISING_ANALSYSIS false
 #define BENCHLIB_VIEWER_VAR "benchmarkData"
+#define BENCHLIB_MIN_MS_PER_BENCH_UNIT 10
 
     struct Config
     {
         std::size_t microMaxHistory;
+        std::size_t minMsPerBenchUnit;
 
         std::string viewerVar;
         std::string timestamp;
@@ -47,6 +49,7 @@ namespace BenchLib
 
         Config()
             : microMaxHistory( BENCHLIB_MICRO_MAX_HISTORY ),
+              minMsPerBenchUnit( BENCHLIB_MIN_MS_PER_BENCH_UNIT ),
               alpha( BENCHLIB_MICRO_ALPHA ),
               winsoriseAnalysis( BENCHLIB_WINSORISING_ANALSYSIS )
         {
@@ -63,8 +66,14 @@ namespace BenchLib
         writer.String( "microMaxHistory" );
         writer.Uint( config.microMaxHistory );
 
+        writer.String( "minMsPerBenchUnit" );
+        writer.Uint( config.minMsPerBenchUnit );
+
         writer.String( "alpha" );
         writer.Double( config.alpha );
+
+        writer.String( "winsoriseAnalysis" );
+        writer.Bool( config.winsoriseAnalysis );
 
         writer.EndObject();
     }
@@ -73,7 +82,9 @@ namespace BenchLib
     void Deserialise( Config &config, tReader &reader )
     {
         config.microMaxHistory = reader["microMaxHistory"].GetUint();
+        config.minMsPerBenchUnit = reader["minMsPerBenchUnit"].GetUint();
         config.alpha = reader["alpha"].GetDouble();
+        config.winsoriseAnalysis = reader["winsoriseAnalysis"].GetBool();
     }
 }
 

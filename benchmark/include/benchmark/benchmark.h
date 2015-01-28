@@ -25,11 +25,12 @@
 #define __BENCHLIB__MICROBENCHMARK_H__
 
 #include "benchmark/benchmarkResult.h"
-#include "benchmark/benchmarkCase.h"
+#include "benchmark/IBenchmarkCase.h"
 #include "benchmark/benchmarkData.h"
 #include "benchmark/regression.h"
 #include "benchmark/console.h"
 #include "benchmark/config.h"
+#include "benchmark/memory.h"
 #include "benchmark/timer.h"
 #include "benchmark/util.h"
 
@@ -40,7 +41,7 @@ namespace BenchLib
 {
 
     class Benchmark
-        : public BenchmarkCase
+        : public IBenchmarkCase
     {
     public:
 
@@ -68,13 +69,13 @@ namespace BenchLib
         };
 
         Benchmark()
-            : mCase( nullptr )
+            : mBenchmarkCase( nullptr )
         {
 
         }
 
         Benchmark( Case *benchCase )
-            : mCase( benchCase )
+            : mBenchmarkCase( benchCase )
         {
 
         }
@@ -137,7 +138,7 @@ namespace BenchLib
         {
             mCurrent.SetMemoryProfile( IsProfileMemoryEnabled() );
             mCurrent.SetTimestamp( gConfig.timestamp );
-            mCurrent.SetWingsorise( GetWingsorise() );
+            mCurrent.SetWingsorise( GetWinsorise() );
             mCurrent.SetSampleCount( GetSampleCount() );
         }
 
@@ -183,7 +184,7 @@ namespace BenchLib
 
                     BenchmarkStat<double> sampleStat;
 
-                    if ( GetWingsorise() )
+                    if ( GetWinsorise() )
                     {
                         sampleStat = timeCorrected.GetWingsorisedStats();
                     }
@@ -199,23 +200,16 @@ namespace BenchLib
                     history.push_back( stat );
                 }
 
-                Statistics<double>::GetConfidenceInterval( history, histInterval );
+                Statistics<double>::GetConfidenceIntervalFromHistory( history, histInterval );
 
 
                 Statistics<double>::ConfidenceInterval currentInterval;
+                BenchmarkStat<double> stats = GetWinsorise() ? mCurrent.GetTimeCorrected().GetWingsorisedStats() :
+                                              mCurrent.GetTimeCorrected().GetSampleStats();
 
-                if ( !GetWingsorise() )
-                {
-                    BenchmarkStat<double> stats = mCurrent.GetTimeCorrected().GetSampleStats();
-                    Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
-                            currentInterval );
-                }
-                else
-                {
-                    BenchmarkStat<double> stats = mCurrent.GetTimeCorrected().GetWingsorisedStats();
-                    Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
-                            currentInterval );
-                }
+                Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
+                        currentInterval );
+
 
                 if ( currentInterval.upper < histInterval.lower )
                 {
@@ -231,7 +225,7 @@ namespace BenchLib
 
             if ( IsProfileMemoryEnabled() )
             {
-                std::vector< Statistics<double, int64_t>::StatHistory > history;
+                std::vector< Statistics<double, int64_t>::StatHistory > statHistory;
                 std::vector< int64_t > peaks;
 
                 for ( BenchmarkResult<> *result : completedResults )
@@ -247,19 +241,19 @@ namespace BenchLib
                         stat.variance = sampleStat.variance;
                         stat.sampleCount = sampleCount;
 
-                        history.push_back( stat );
+                        statHistory.push_back( stat );
                     }
 
                     peaks.push_back( sampleStat.high );
                 }
 
-                if ( !history.empty() )
+                if ( !statHistory.empty() )
                 {
                     Statistics<double, int64_t>::ConfidenceInterval interval;
-                    Statistics<double, int64_t>::GetConfidenceInterval( history, interval );
+                    Statistics<double, int64_t>::GetConfidenceIntervalFromHistory( statHistory, interval );
 
-                    BenchmarkStat< double, int64_t > stats = mCurrent.GetMemoryCorrected().GetSampleStats();
-                    double average = stats.average;
+                    BenchmarkStat< double, int64_t > sampleStats = mCurrent.GetMemoryCorrected().GetSampleStats();
+                    double average = sampleStats.average;
 
                     if ( average < interval.lower )
                     {
@@ -274,21 +268,22 @@ namespace BenchLib
 
                     BenchmarkData< double, int64_t > peakData;
                     peakData.SetSamples( peaks );
+
                     BenchmarkStat< double, int64_t > peakStats = peakData.GetSampleStats();
 
                     Statistics<double, int64_t>::ConfidenceInterval peakInterval;
                     Statistics<double, int64_t>::GetConfidenceInterval( peakStats.standardDeviation, peaks.size(), peakStats.average,
                             peakInterval );
 
-                    if ( stats.high < peakInterval.lower )
+                    if ( sampleStats.high < peakInterval.lower )
                     {
                         regression |= ( uint32_t )Regression::PeakMemSmaller;
-                        Console::RegressPeakMemSmaller( peakInterval.lower, peakInterval.upper, stats.high );
+                        Console::RegressPeakMemSmaller( peakInterval.lower, peakInterval.upper, sampleStats.high );
                     }
-                    else if ( stats.high > peakInterval.upper )
+                    else if ( sampleStats.high > peakInterval.upper )
                     {
                         regression |= ( uint32_t )Regression::PeakMemLarger;
-                        Console::RegressPeakMemLarger( peakInterval.lower, peakInterval.upper, stats.high );
+                        Console::RegressPeakMemLarger( peakInterval.lower, peakInterval.upper, sampleStats.high );
                     }
                 }
             }
@@ -323,7 +318,7 @@ namespace BenchLib
 
         void CalculateOperationCount()
         {
-            const uint64_t minTimeRequiredPerUnit = 10;
+            const uint64_t minTimeRequiredPerUnit = gConfig.minMsPerBenchUnit;
             size_t operationCount = 0;
 
             const TimePoint start = Clock::now();
@@ -346,7 +341,7 @@ namespace BenchLib
             return 0;
         }
 
-        bool GetWingsorise() const
+        bool GetWinsorise() const
         {
             return gConfig.winsoriseAnalysis;
         }
@@ -385,7 +380,7 @@ namespace BenchLib
 
         std::string mShadowName;
 
-        Case *mCase;
+        Case *mBenchmarkCase;
 
         double mBaselineDuration;
         double mSampleDuration;
@@ -437,14 +432,12 @@ namespace BenchLib
             }
 
             mBaselineDuration = std::accumulate( baseline.begin(), baseline.end(), 0.0f );
+            mSampleDuration = std::accumulate( samples.begin(), samples.end(), 0.0f );
 
             mCurrent.GetTimeBaseline().SetSamples( baseline );
-
-
             mCurrent.GetTimeSamples().SetSamples( samples );
-            mCurrent.GetTimeCorrected().SetSamplesForCorrection( mCurrent.GetTimeSamples(), mCurrent.GetTimeBaseline() );
 
-            mSampleDuration = std::accumulate( samples.begin(), samples.end(), 0.0f );
+            mCurrent.GetTimeCorrected().SetSamplesForCorrection( mCurrent.GetTimeSamples(), mCurrent.GetTimeBaseline() );
         }
 
         void RunMemoryBaseline()
@@ -456,7 +449,7 @@ namespace BenchLib
 
             Memory::GetInstance().EndProfile( samples );
 
-            if ( samples.size() > 1 )
+            if ( !samples.empty() )
             {
                 mCurrent.GetMemoryBaseline().SetSamples( samples );
             }
@@ -484,16 +477,16 @@ namespace BenchLib
 
         inline void RunSamples()
         {
-            mCase->Init();
-            mCase->Run();
-            mCase->Finalise();
+            mBenchmarkCase->Init();
+            mBenchmarkCase->Run();
+            mBenchmarkCase->Finalise();
         }
 
         inline void RunBaseline()
         {
-            mCase->Init();
-            mCase->Baseline();
-            mCase->Finalise();
+            mBenchmarkCase->Init();
+            mBenchmarkCase->Baseline();
+            mBenchmarkCase->Finalise();
         }
 
     };

@@ -29,7 +29,7 @@
 namespace BenchLib
 {
 
-    class BenchmarkCase
+    class IBenchmarkCase
     {
     public:
 

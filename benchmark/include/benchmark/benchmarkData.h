@@ -32,7 +32,7 @@
 namespace BenchLib
 {
 
-    template< typename tDataType, typename tSampleType = tDataType, bool sample = true >
+    template< typename tDataType, typename tSampleType = tDataType, bool isSample = true >
     class BenchmarkData
     {
     public:
@@ -41,7 +41,7 @@ namespace BenchLib
             : mMedian( 0 ),
               mQ1( 0 ),
               mQ3( 0 ),
-              mWingsorise( false ),
+              mWinsorise( false ),
               mIsCorrected( isCorrected )
         {
         }
@@ -78,10 +78,10 @@ namespace BenchLib
                 writer.String( "Q3" );
                 writer.Double( static_cast< double >( mQ3 ) );
 
-                if ( mInliers.size() > 1 )
+                if ( !mInliers.empty() )
                 {
-                    writer.String( "wingsorisedStats" );
-                    ::BenchLib::Serialise< tDataType, tSampleType, tWriter >( mWingsorisedStats, writer );
+                    writer.String( "winsorisedStats" );
+                    ::BenchLib::Serialise< tDataType, tSampleType, tWriter >( mWinsorisedStats, writer );
                 }
 
                 if ( StoreSamples() )
@@ -140,7 +140,7 @@ namespace BenchLib
 
             if ( validSize )
             {
-                if ( !reader.HasMember( "wingsorisedStats" ) )
+                if ( !reader.HasMember( "winsorisedStats" ) )
                 {
                     CalculatePercentileStats();
                 }
@@ -169,14 +169,14 @@ namespace BenchLib
 
                     if ( HasSufficientInliers() )
                     {
-                        ::BenchLib::Deserialise< tDataType, tSampleType >( mWingsorisedStats, reader["wingsorisedStats"] );
+                        ::BenchLib::Deserialise< tDataType, tSampleType >( mWinsorisedStats, reader["wingsorisedStats"] );
                     }
                 }
             }
         }
 
-        void SetSamplesForCorrection( const BenchmarkData< tDataType, tSampleType, sample > &samples,
-                                      const BenchmarkData< tDataType, tSampleType, sample > &baseline )
+        void SetSamplesForCorrection( const BenchmarkData< tDataType, tSampleType, isSample > &samples,
+                                      const BenchmarkData< tDataType, tSampleType, isSample > &baseline )
         {
             const tDataType baselineAvg = baseline.GetSampleStats().average;
             const tDataType sampleAvg = samples.GetSampleStats().average;
@@ -192,27 +192,36 @@ namespace BenchLib
 
             const std::vector< tSampleType > &sampleVec = samples.GetSamples();
             const std::vector< tSampleType > &baselineVec = baseline.GetSamples();
-            mSampleStats.average = Statistics< tDataType, tSampleType, sample>::CalculateMean( sampleVec );
-            mSampleStats.variance = samples.GetSampleStats().variance + baseline.GetSampleStats().variance -
-                                    Statistics< tDataType, tSampleType, sample>::CalculateCovariance( sampleVec, sampleAvg,
-                                            baselineVec, baselineAvg );
-            mSampleStats.standardDeviation = Statistics< tDataType, tSampleType, sample>::CalculateStandardDeviation(
+
+            mSampleStats.average = Statistics< tDataType, tSampleType, isSample>::CalculateMean( sampleVec );
+
+            tDataType meanVar =  samples.GetSampleStats().variance + baseline.GetSampleStats().variance -
+                                 2 * Statistics< tDataType, tSampleType, isSample>::CalculateCovariance( sampleVec, sampleAvg,
+                                         baselineVec, baselineAvg );
+
+            mSampleStats.variance = meanVar / sampleVec.size();
+
+            mSampleStats.standardDeviation = Statistics< tDataType, tSampleType, isSample>::CalculateStandardDeviation(
                                                  mSampleStats.variance );
 
             if ( IsValid() )
             {
-                const std::vector< tSampleType > &wsampleVec = samples.GetWingsorised();
-                const std::vector< tSampleType > &wbaselineVec = baseline.GetWingsorised();
+                const std::vector< tSampleType > &wsampleVec = samples.GetWinsorised();
+                const std::vector< tSampleType > &wbaselineVec = baseline.GetWinsorised();
 
                 const tDataType wbaselineAvg = baseline.GetWingsorisedStats().average;
                 const tDataType wsampleAvg = samples.GetWingsorisedStats().average;
 
-                mWingsorisedStats.average = Statistics< tDataType, tSampleType, sample>::CalculateMean( wsampleVec );
-                mWingsorisedStats.variance = samples.GetWingsorisedStats().variance + baseline.GetWingsorisedStats().variance -
-                                             Statistics< tDataType, tSampleType, sample>::CalculateCovariance( wsampleVec, wsampleAvg,
-                                                     wbaselineVec, wbaselineAvg );
-                mWingsorisedStats.standardDeviation = Statistics< tDataType, tSampleType, sample>::CalculateStandardDeviation(
-                        mWingsorisedStats.variance );
+                mWinsorisedStats.average = Statistics< tDataType, tSampleType, isSample>::CalculateMean( wsampleVec );
+
+                tDataType wmeanVar = samples.GetWingsorisedStats().variance + baseline.GetWingsorisedStats().variance -
+                                     2 * Statistics< tDataType, tSampleType, isSample>::CalculateCovariance( wsampleVec, wsampleAvg,
+                                             wbaselineVec, wbaselineAvg );
+
+                mWinsorisedStats.variance = wmeanVar / wsampleVec.size();
+
+                mWinsorisedStats.standardDeviation = Statistics< tDataType, tSampleType, isSample>::CalculateStandardDeviation(
+                        mWinsorisedStats.variance );
             }
         }
 
@@ -225,7 +234,7 @@ namespace BenchLib
 
         BenchmarkStat< tDataType, tSampleType > GetWingsorisedStats() const
         {
-            return mWingsorisedStats;
+            return mWinsorisedStats;
         }
 
         BenchmarkStat< tDataType, tSampleType > GetSampleStats() const
@@ -268,14 +277,14 @@ namespace BenchLib
             return mOutliers;
         }
 
-        const std::vector< tSampleType > &GetWingsorised() const
+        const std::vector< tSampleType > &GetWinsorised() const
         {
-            return mWingsorised;
+            return mWinsorised;
         }
 
-        void SetWingsorise( bool val )
+        void SetWinsorise( bool val )
         {
-            mWingsorise = val;
+            mWinsorise = val;
         }
 
         bool HasSufficientInliers()
@@ -288,10 +297,10 @@ namespace BenchLib
         std::vector< tSampleType > mSamples;
         std::vector< tSampleType > mInliers;
         std::vector< tSampleType > mOutliers;
-        std::vector< tSampleType > mWingsorised;
+        std::vector< tSampleType > mWinsorised;
 
         BenchmarkStat< tDataType, tSampleType > mSampleStats;
-        BenchmarkStat< tDataType, tSampleType > mWingsorisedStats;
+        BenchmarkStat< tDataType, tSampleType > mWinsorisedStats;
 
         tSampleType mInlierHigh;
         tSampleType mInlierLow;
@@ -300,7 +309,7 @@ namespace BenchLib
         tSampleType mQ1;
         tSampleType mQ3;
 
-        bool mWingsorise;
+        bool mWinsorise;
         bool mIsCorrected;
 
         void CalculateWinsorisedSamples( tSampleType low, tSampleType high )
@@ -324,7 +333,7 @@ namespace BenchLib
                     assert( false );
                 }
 
-                mWingsorised = wsamples;
+                mWinsorised = wsamples;
             }
         }
 
@@ -364,17 +373,17 @@ namespace BenchLib
 
             if ( HasSufficientInliers() )
             {
-                mWingsorisedStats.low = *mInliers.begin();
-                mWingsorisedStats.high = *--mInliers.end();
+                mWinsorisedStats.low = *mInliers.begin();
+                mWinsorisedStats.high = *--mInliers.end();
 
                 if ( calculateStatistics )
                 {
-                    CalculateWinsorisedSamples( mWingsorisedStats.low, mWingsorisedStats.high );
+                    CalculateWinsorisedSamples( mWinsorisedStats.low, mWinsorisedStats.high );
 
-                    Statistics< tDataType, tSampleType, sample > stats( mWingsorised );
-                    mWingsorisedStats.average = stats.GetMean();
-                    mWingsorisedStats.standardDeviation = stats.GetStandardDeviation();
-                    mWingsorisedStats.variance = stats.GetVariance();
+                    Statistics< tDataType, tSampleType, isSample > stats( mWinsorised );
+                    mWinsorisedStats.average = stats.GetMean();
+                    mWinsorisedStats.standardDeviation = stats.GetStandardDeviation();
+                    mWinsorisedStats.variance = stats.GetVariance();
                 }
             }
         }
@@ -383,7 +392,7 @@ namespace BenchLib
         {
             if ( calculateStatistics )
             {
-                Statistics< tDataType, tSampleType, sample > sampleStats( mSamples );
+                Statistics< tDataType, tSampleType, isSample > sampleStats( mSamples );
                 mSampleStats.average = sampleStats.GetMean();
                 mSampleStats.standardDeviation = sampleStats.GetStandardDeviation();
                 mSampleStats.variance = sampleStats.GetVariance();

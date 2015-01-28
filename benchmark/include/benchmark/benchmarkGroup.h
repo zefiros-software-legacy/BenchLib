@@ -80,8 +80,6 @@ namespace BenchLib
                     Benchmark *benchmark = new Benchmark();
                     benchmark->Deserialise( *it );
                     AddBenchmark( benchmark );
-
-                    mAll[name] = benchmark;
                 }
                 else
                 {
@@ -124,11 +122,13 @@ namespace BenchLib
                 {
                     std::cerr << ex.what() << std::endl;
 
-                    SetFailed( failCount, benchmark, name );
+                    ++failCount;
+                    SetFailed( benchmark, name );
                 }
                 catch ( ... )
                 {
-                    SetFailed( failCount, benchmark, name );
+                    ++failCount;
+                    SetFailed( benchmark, name );
                 }
 
             }
@@ -143,7 +143,7 @@ namespace BenchLib
 
             if ( it == mAll.end() )
             {
-                mAll[benchmark->GetName()] = benchmark;
+                mAll[name] = benchmark;
                 return true;
             }
 
@@ -194,15 +194,13 @@ namespace BenchLib
 
         std::string mName;
 
-        std::size_t SetFailed( std::size_t &failCount, tBenchmarkType *benchmark, const std::string name )
+        void SetFailed( tBenchmarkType *benchmark, const std::string name )
         {
-            ++failCount;
-
             mFailed.push_back( benchmark );
 
             benchmark->SetCompleted( false );
 
-            Console::Fail( benchmark->GetGroup(), name );   return failCount;
+            Console::Fail( benchmark->GetGroup(), name );
         }
 
         void SetCompleted( tBenchmarkType *benchmark, const std::string name )

@@ -31,7 +31,7 @@
 
 namespace BenchLib
 {
-    template< typename tDataType, typename tSampleType = tDataType, bool sample = true >
+    template< typename tDataType, typename tSampleType = tDataType, bool isSample = true >
     class Statistics
     {
     public:
@@ -106,7 +106,7 @@ namespace BenchLib
             return 0.0f;
         }
 
-        static void GetConfidenceInterval( std::vector< StatHistory > &history, ConfidenceInterval &interval )
+        static void GetConfidenceIntervalFromHistory( std::vector< StatHistory > &history, ConfidenceInterval &interval )
         {
             std::size_t historySampleSize = 0;
             tDataType scaledHistoryPooledVariance = 0;
@@ -123,7 +123,7 @@ namespace BenchLib
             tDataType historyPooledStdev = std::sqrt( scaledHistoryPooledVariance / historySampleSize );
             tDataType historyMean = scaledHistoryMean / historySampleSize;
 
-            return GetConfidenceInterval( historyPooledStdev, historySampleSize, historyMean, interval );
+            GetConfidenceInterval( historyPooledStdev, historySampleSize, historyMean, interval );
         }
 
         static void GetConfidenceInterval( tDataType stdev, std::size_t size, tDataType mean, ConfidenceInterval &interval )
@@ -200,7 +200,7 @@ namespace BenchLib
 
         static std::size_t GetSize( std::size_t size )
         {
-            return sample ? size - 1 : size;
+            return isSample ? size - 1 : size;
         }
     };
 

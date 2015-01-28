@@ -87,11 +87,12 @@ namespace BenchLib
             Console::GroupStart( mName, GetCount() );
             TimePoint start = Clock::now();
 
-            mMicros.RunBenchmarks();
+            bool success = mMicros.RunBenchmarks();
 
             mDuration = Timer<std::chrono::milliseconds>::GetDuration( start );
             Console::GroupEnd( mName, GetCount(), mDuration );
-            return true;
+
+            return success;
         }
 
         std::size_t GetMicroCount() const

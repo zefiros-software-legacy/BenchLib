@@ -18,12 +18,66 @@
     <IISExpressUseClassicPipelineMode />
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="app.css" />
+    <Content Include="content\benchViewer.css" />
+    <Content Include="content\bootstrap-sortable.css" />
+    <Content Include="content\bootstrap-theme.css" />
+    <Content Include="content\bootstrap-theme.min.css" />
+    <Content Include="content\bootstrap-vertical-tabs.min.css" />
+    <Content Include="content\bootstrap.css" />
+    <Content Include="content\bootstrap.min.css" />
+    <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="index.html" />
+    <Content Include="packages.config" />
+    <Content Include="scripts\bootstrap-sortable.js" />
+    <Content Include="content\bootstrap-theme.css.map" />
+    <Content Include="content\bootstrap.css.map" />
+    <None Include="FileEXP.pubxml" />
+    <Content Include="scripts\bootstrap.js" />
+    <Content Include="scripts\bootstrap.min.js" />
+    <Content Include="scripts\collections.js" />
+    <Content Include="scripts\highcharts-more.js" />
+    <Content Include="scripts\highcharts.js" />
+    <Content Include="fonts\glyphicons-halflings-regular.woff" />
+    <Content Include="fonts\glyphicons-halflings-regular.ttf" />
+    <Content Include="fonts\glyphicons-halflings-regular.eot" />
+    <Content Include="scripts\collections.js.map" />
+    <None Include="scripts\jquery-2.1.1.intellisense.js" />
+    <Content Include="scripts\jquery-2.1.1.js" />
+    <Content Include="scripts\jquery-2.1.1.min.js" />
+    <Content Include="scripts\module\exporting.js" />
+    <Content Include="scripts\jquery-2.1.1.min.map" />
+    <None Include="scripts\_references.js" />
+    <Content Include="scripts\moment-with-locales.js" />
+    <Content Include="scripts\moment-with-locales.min.js" />
+    <Content Include="scripts\moment.js" />
+    <Content Include="scripts\moment.min.js" />
+    <Content Include="scripts\npm.js" />
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="app.ts" />
+    <TypeScriptCompile Include="core\benchLib.ts" />
+    <TypeScriptCompile Include="core\benchmark.ts" />
+    <TypeScriptCompile Include="core\benchmarkGroup.ts" />
+    <TypeScriptCompile Include="core\group.ts" />
+    <TypeScriptCompile Include="core\IBenchmarkCase.ts" />
+    <TypeScriptCompile Include="core\benchmarkData.ts" />
+    <TypeScriptCompile Include="core\benchmarkResult.ts" />
+    <TypeScriptCompile Include="core\benchmarkStat.ts" />
+    <TypeScriptCompile Include="core\config.ts" />
+    <TypeScriptCompile Include="core\memory.ts" />
+    <TypeScriptCompile Include="core\regression.ts" />
+    <TypeScriptCompile Include="scripts\collections.ts" />
+    <TypeScriptCompile Include="scripts\typings\bootstrap\bootstrap.d.ts" />
+    <TypeScriptCompile Include="scripts\typings\highcharts\highcharts.d.ts" />
+    <TypeScriptCompile Include="scripts\typings\jquery\jquery.d.ts" />
+    <TypeScriptCompile Include="core\util.ts" />
+    <TypeScriptCompile Include="core\statistics.ts" />
+    <TypeScriptCompile Include="viewer\label.ts" />
+    <TypeScriptCompile Include="viewer\menuGroup.ts" />
+    <TypeScriptCompile Include="viewer\microSubPage.ts" />
+    <TypeScriptCompile Include="viewer\page.ts" />
+    <TypeScriptCompile Include="viewer\subPage.ts" />
+    <TypeScriptCompile Include="viewer\viewer.ts" />
   </ItemGroup>
   <ItemGroup>
     <None Include="web.Debug.config">
@@ -60,12 +114,17 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
     <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptModuleKind>none</TypeScriptModuleKind>
+    <TypeScriptOutFile>scripts/benchViewer.js</TypeScriptOutFile>
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
     <TypeScriptSourceMap>false</TypeScriptSourceMap>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\SSDT\Microsoft.Data.Tools.Schema.Sql.UnitTesting.targets" Condition="'$(VisualStudioVersion)' == ''" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.Sql.UnitTesting.targets" Condition="'$(VisualStudioVersion)' != ''" />
 </Project>

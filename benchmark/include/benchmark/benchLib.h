@@ -230,7 +230,7 @@ namespace BenchLib
 #pragma warning(push)
 #pragma warning(disable:4996)
             char buffer[32];
-            std::strftime( buffer, 32, "%d-%m-%Y %H:%M:%S", std::localtime( &now_c ) );
+            std::strftime( buffer, 32, "%FT%TZ", std::localtime( &now_c ) );
 #pragma warning(pop)
 
             gConfig.timestamp = buffer;
