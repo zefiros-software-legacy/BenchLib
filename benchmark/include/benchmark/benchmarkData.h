@@ -193,7 +193,7 @@ namespace BenchLib
             const std::vector< tSampleType > &sampleVec = samples.GetSamples();
             const std::vector< tSampleType > &baselineVec = baseline.GetSamples();
 
-            mSampleStats.average = Statistics< tDataType, tSampleType, isSample>::CalculateMean( sampleVec );
+            mSampleStats.average = Statistics< tDataType, tSampleType, isSample>::CalculateMean( corrected );
 
             tDataType meanVar =  samples.GetSampleStats().variance + baseline.GetSampleStats().variance -
                                  2 * Statistics< tDataType, tSampleType, isSample>::CalculateCovariance( sampleVec, sampleAvg,

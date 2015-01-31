@@ -46,11 +46,8 @@
 #include <string>
 #include <limits>
 
-// Silly silly msvc....
+// Silly silly msvc...
 #undef max
-
-
-
 
 namespace BenchLib
 {
@@ -230,7 +227,7 @@ namespace BenchLib
 #pragma warning(push)
 #pragma warning(disable:4996)
             char buffer[32];
-            std::strftime( buffer, 32, "%FT%TZ", std::localtime( &now_c ) );
+            std::strftime( buffer, 32, "%Y-%m-%dT%H:%M:%SZ", std::localtime( &now_c ) );
 #pragma warning(pop)
 
             gConfig.timestamp = buffer;

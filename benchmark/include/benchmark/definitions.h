@@ -71,40 +71,43 @@ namespace BenchLib
 #define EXTMICRO( group, name, samples, memoryProfile, code )                                           \
     namespace __Benchmark                                                                               \
     {                                                                                                   \
-        class CONCAT( ___, group, ___, name )                                                           \
-            : public BenchLib::Benchmark                                                                \
+        namespace CONCAT( ___, group, ___, name )                                                       \
         {                                                                                               \
-        public:                                                                                         \
-            CONCAT( ___, group, ___, name )( Case *benchCase)                                           \
-                : Benchmark( benchCase )                                                                \
+            class Benchmark                                                                             \
+                : public BenchLib::Benchmark                                                            \
             {                                                                                           \
-            }                                                                                           \
-            std::size_t GetSampleCount() const                                                          \
-            {                                                                                           \
-                return samples;                                                                         \
-            }                                                                                           \
-            std::string GetName() const                                                                 \
-            {                                                                                           \
-                return #name;                                                                           \
-            }                                                                                           \
-            std::string GetGroup() const                                                                \
-            {                                                                                           \
-                return #group;                                                                          \
-            }                                                                                           \
-            virtual bool IsProfileMemoryEnabled() const                                                 \
-            {                                                                                           \
-                return memoryProfile;                                                                   \
-            }                                                                                           \
-            virtual bool IsShadow() const                                                               \
-            {                                                                                           \
-                return false;                                                                           \
-            }                                                                                           \
-            struct BCase                                                                                \
-                    : public Case                                                                       \
-                    code;                                                                               \
-        };                                                                                              \
+            public:                                                                                     \
+                Benchmark( Case *benchCase )                                                            \
+                    : BenchLib::Benchmark( benchCase )                                                  \
+                {                                                                                       \
+                }                                                                                       \
+                std::size_t GetSampleCount() const                                                      \
+                {                                                                                       \
+                    return samples;                                                                     \
+                }                                                                                       \
+                std::string GetName() const                                                             \
+                {                                                                                       \
+                    return #name;                                                                       \
+                }                                                                                       \
+                std::string GetGroup() const                                                            \
+                {                                                                                       \
+                    return #group;                                                                      \
+                }                                                                                       \
+                virtual bool IsProfileMemoryEnabled() const                                             \
+                {                                                                                       \
+                    return memoryProfile;                                                               \
+                }                                                                                       \
+                virtual bool IsShadow() const                                                           \
+                {                                                                                       \
+                    return false;                                                                       \
+                }                                                                                       \
+                struct Setup                                                                            \
+                        : public Case                                                                   \
+                        code;                                                                           \
+            };                                                                                          \
+        }                                                                                               \
         volatile bool CONCAT( ___gResult, group, ___, name ) =                                          \
-                BenchLib::RegisterMicroBenchmark(#group, new CONCAT( ___, group, ___, name )( new CONCAT( ___, group, ___, name )::BCase ) );   \
+                BenchLib::RegisterMicroBenchmark(#group, new CONCAT( ___, group, ___, name )::Benchmark( new CONCAT( ___, group, ___, name )::Benchmark::Setup ) );   \
     }
 }
 
