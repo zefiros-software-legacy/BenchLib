@@ -156,3 +156,4 @@ benchmark/*.vcxproj*
 benchmark/*.sln*
 test/*.vcxproj*
 test/*.sln*
+viewer/data.js
