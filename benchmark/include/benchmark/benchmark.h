@@ -318,7 +318,7 @@ namespace BenchLib
 
         void CalculateOperationCount()
         {
-            const uint64_t minTimeRequiredPerUnit = gConfig.minMsPerBenchUnit;
+            const int64_t minTimeRequiredPerUnit = gConfig.minMsPerBenchUnit;
             size_t operationCount = 0;
 
             const TimePoint start = Clock::now();

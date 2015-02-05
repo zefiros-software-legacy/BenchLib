@@ -318,8 +318,8 @@ namespace BenchLib
         inline void Done( const std::string &group, const std::string &name, double benchTime, double baselineTime )
         {
             PrintDone();
-            std::cout << group << "." << name << " (" << benchTime << " + " << baselineTime << "; " <<
-                      benchTime + baselineTime << " sec)" << std::endl;
+            std::cout << group << "." << name << " Unit Time: (" << benchTime << " + " << baselineTime << "; " <<
+                      benchTime + baselineTime << " msec)" << std::endl;
         }
 
         inline void GroupEnd( const std::string &group, std::size_t groupSize, std::chrono::milliseconds totalTime )
