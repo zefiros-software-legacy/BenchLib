@@ -46,11 +46,8 @@
 #include <string>
 #include <limits>
 
-// Silly silly msvc....
+// Silly silly msvc...
 #undef max
-
-
-
 
 namespace BenchLib
 {
