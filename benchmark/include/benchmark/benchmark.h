@@ -80,6 +80,11 @@ namespace BenchLib
 
         }
 
+        ~Benchmark()
+        {
+            delete mBenchmarkCase;
+        }
+
         template< typename tWriter >
         void Serialise( tWriter &writer )
         {
