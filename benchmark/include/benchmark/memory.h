@@ -148,24 +148,24 @@ namespace BenchLib
 
 #ifndef BENCHLIB_DISABLE_MEMPROFILE
 
-void *operator new( std::size_t size, const char *file, std::size_t line )
+inline void *operator new( std::size_t size, const char *file, std::size_t line )
 {
     void *ptr = operator new( size );
     BenchLib::Memory::GetInstance().AddTrace( ptr, size, file, line );
     return ptr;
 }
 
-static void *operator new[]( std::size_t size, const char *file, std::size_t line )
+static inline void *operator new[]( std::size_t size, const char *file, std::size_t line )
 {
     return operator new( size, file, line );
 }
 
-void *operator new( std::size_t size )
+inline void *operator new( std::size_t size )
 {
     return malloc( size );
 }
 
-static void operator delete( void *ptr, const char *, std::size_t )
+static inline void operator delete( void *ptr, const char *, std::size_t )
 {
     BenchLib::Memory::GetInstance().RemoveTrace( ptr );
     free( ptr );
@@ -177,7 +177,7 @@ inline void _cdecl operator delete( void *ptr )
     free( ptr );
 }
 
-void operator delete[]( void *ptr )
+inline void operator delete[]( void *ptr )
 {
     operator delete( ptr );
 }

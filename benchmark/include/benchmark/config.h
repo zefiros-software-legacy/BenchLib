@@ -35,7 +35,7 @@ namespace BenchLib
 #define BENCHLIB_VIEWER_VAR "benchmarkData"
 #define BENCHLIB_MIN_MS_PER_BENCH_UNIT 10
 
-    struct Config
+    static struct Config
     {
         std::size_t microMaxHistory;
         std::size_t minMsPerBenchUnit;

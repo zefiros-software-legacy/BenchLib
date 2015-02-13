@@ -417,13 +417,13 @@ namespace BenchLib
         };
     };
 
-    static bool RegisterMicroBenchmark( const std::string &group, Benchmark *benchCase )
+    static inline bool RegisterMicroBenchmark( const std::string &group, Benchmark *benchCase )
     {
         BenchmarkIntern &benchmark = BenchmarkIntern::GetInstance();
         return benchmark.RegisterMicroBenchmark( group, benchCase );
     }
 
-    static int32_t RunAll( int argc, char *argv[] )
+    static inline int32_t RunAll( int argc, char *argv[] )
     {
         BenchmarkIntern &benchmark = BenchmarkIntern::GetInstance();
         return benchmark.RunBenchmarks( argc, argv );
