@@ -1,4 +1,6 @@
-﻿module BenchViewer
+﻿
+
+module BenchViewer
 {
     export class SubPage
     {
@@ -12,7 +14,15 @@
 
             this.header = $("<h2>");
             this.header.addClass("sub-header");
+        }
 
+        addLabels(): void
+        {
+
+        }
+        
+        renderTo(element: JQuery): void
+        {
             this.addLabels();
 
             var benchLabel = this.getBenchmarkLabel();
@@ -24,16 +34,8 @@
             this.container.append(this.header);
 
             this.container.append(this.addContent());
-        }
 
-        renderTo(element: JQuery): void
-        {
             element.append( this.container );
-        }
-
-        addLabels(): void
-        {
-            
         }
 
         getBenchmarkLabel(): Label

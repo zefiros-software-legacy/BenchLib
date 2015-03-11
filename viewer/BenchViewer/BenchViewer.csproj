@@ -31,6 +31,7 @@
     <Content Include="scripts\bootstrap-sortable.js" />
     <Content Include="content\bootstrap-theme.css.map" />
     <Content Include="content\bootstrap.css.map" />
+    <Content Include="Build\TypeScriptConfiguration.targets" />
     <None Include="FileEXP.pubxml" />
     <Content Include="scripts\bootstrap.js" />
     <Content Include="scripts\bootstrap.min.js" />
@@ -74,12 +75,18 @@
     <TypeScriptCompile Include="core\statistics.ts" />
     <TypeScriptCompile Include="viewer\label.ts" />
     <TypeScriptCompile Include="viewer\menuGroup.ts" />
+    <TypeScriptCompile Include="viewer\microBoxplot.ts" />
+    <TypeScriptCompile Include="viewer\microHistogram.ts" />
+    <TypeScriptCompile Include="viewer\microSamplePlot.ts" />
     <TypeScriptCompile Include="viewer\microSubPage.ts" />
     <TypeScriptCompile Include="viewer\page.ts" />
     <TypeScriptCompile Include="viewer\subPage.ts" />
+    <TypeScriptCompile Include="viewer\tab.ts" />
+    <TypeScriptCompile Include="viewer\table.ts" />
     <TypeScriptCompile Include="viewer\viewer.ts" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="tslint.json" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>
@@ -117,14 +124,17 @@
     <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
     <TypeScriptSourceMap>true</TypeScriptSourceMap>
     <TypeScriptModuleKind>none</TypeScriptModuleKind>
-    <TypeScriptOutFile>scripts/benchViewer.js</TypeScriptOutFile>
     <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
     <TypeScriptSourceMap>false</TypeScriptSourceMap>
   </PropertyGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\SSDT\Microsoft.Data.Tools.Schema.Sql.UnitTesting.targets" Condition="'$(VisualStudioVersion)' == ''" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.Sql.UnitTesting.targets" Condition="'$(VisualStudioVersion)' != ''" />
+  <Import Project="Build\TypeScriptConfiguration.targets" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptOutFile>$(ProjectDir)/scripts/benchViewer.js</TypeScriptOutFile>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" />
 </Project>

@@ -6,7 +6,8 @@ module BenchViewer
 
     export class BenchViewer
     {
-        benchLib: BenchLib;
+        public benchLib: BenchLib;
+        public pages: Page[] = [];
 
         constructor(benchmarkData)
         {
@@ -19,8 +20,8 @@ module BenchViewer
         {
             this.addDefaultPages();
 
-            this.renderMenu();
             this.renderPages();
+            this.renderMenu();
         }
 
         addPage(): void
@@ -41,6 +42,8 @@ module BenchViewer
             {
                 var page = new Page(name, group);
                 page.renderTo(main);
+
+                this.pages.push( page );
             });
 
             $("#main").append(main);
@@ -52,7 +55,7 @@ module BenchViewer
             var pageUl = $( "<ul>" );
             pageUl.addClass( "nav nav-sidebar" );
 
-            this.benchLib.groups.forEach((name, group) =>
+            this.pages.forEach( page =>
             {
             });
 
@@ -63,5 +66,13 @@ module BenchViewer
     window.onload = () =>
     {
         var viewer: BenchViewer = new BenchViewer(benchmarkData);
+
+        $("body").scrollspy({ target: ".nav-sub-container" });
+
+        $(".tab-me").click(function (e)
+        {
+            e.preventDefault();
+            $(this).tab('show');
+        });
     };
 }

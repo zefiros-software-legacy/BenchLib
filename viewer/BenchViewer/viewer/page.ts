@@ -25,7 +25,7 @@ module BenchViewer
         {
             this.group.micros.all.forEach((name, benchmark) =>
             {
-                var page = new MicroSubPage(name, <Core.Benchmark>(benchmark));
+                var page = new MicroSubPage(<Core.Benchmark>(benchmark), name);
                 page.renderTo( this.container );
             });
 

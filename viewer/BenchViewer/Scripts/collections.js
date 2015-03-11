@@ -8,6 +8,12 @@
 */
 var collections;
 (function (collections) {
+    
+
+    
+
+    
+
     /**
     * Default function to compare element order.
     * @function
@@ -66,7 +72,8 @@ var collections;
             for (var prop in item) {
                 if (item.hasOwnProperty(prop)) {
                     if (first)
-                        first = false; else
+                        first = false;
+                    else
                         toret = toret + join;
                     toret = toret + prop + ":" + item[prop];
                 }
@@ -318,6 +325,8 @@ var collections;
         arrays.forEach = forEach;
     })(collections.arrays || (collections.arrays = {}));
     var arrays = collections.arrays;
+
+    
 
     var LinkedList = (function () {
         /**
@@ -704,6 +713,8 @@ var collections;
         return LinkedList;
     })();
     collections.LinkedList = LinkedList;
+
+    
 
     var Dictionary = (function () {
         /**
@@ -2012,6 +2023,7 @@ var collections;
     })();
     collections.Bag = Bag;
 
+    
     var BSTree = (function () {
         /**
         * Creates an empty binary search tree.
@@ -2440,6 +2452,5 @@ var collections;
         return BSTree;
     })();
     collections.BSTree = BSTree;
-})(collections || (collections = {}));// End of module
-
-//@ sourceMappingURL=collections.js.map
+})(collections || (collections = {})); // End of module
+//# sourceMappingURL=collections.js.map

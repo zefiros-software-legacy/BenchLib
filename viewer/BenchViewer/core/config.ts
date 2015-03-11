@@ -7,7 +7,9 @@ module BenchViewer.Core
         static winsoriseAnalysis: boolean = false;
 
         static microMaxHistory: number = 20;
-        static minMsPerBenchUnit: number = 10
+        static minMsPerBenchUnit: number = 10;
+
+        static precision: number = 6;
 
         static timestamp: string;
 

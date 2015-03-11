@@ -198,6 +198,8 @@ var BenchViewer;
 
             Config.microMaxHistory = 20;
             Config.minMsPerBenchUnit = 10;
+
+            Config.precision = 6;
             return Config;
         })();
         Core.Config = Config;
@@ -369,6 +371,46 @@ Array.prototype.max = function () {
 Array.prototype.min = function () {
     return Math.min.apply(Math, this);
 };
+
+var BenchViewer;
+(function (BenchViewer) {
+    (function (Core) {
+        /**
+        * Generates a GUID string.
+        * @returns {String} The generated GUID.
+        * @example af8a8416-6e18-a307-bd9c-f2c947bbb3aa
+        * @author Slavik Meltser (slavik@meltser.info).
+        * @link http://slavik.meltser.info/?p=142
+        */
+        function guid() {
+            function p8(s) {
+                if (typeof s === "undefined") { s = false; }
+                var p = (Math.random().toString(16) + "000000000").substr(2, 8);
+                return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
+            }
+
+            return p8() + p8(true) + p8(true) + p8();
+        }
+        Core.guid = guid;
+
+        function round(x) {
+            if (x.toString().indexOf("e") >= 0) {
+                return Math.round(x);
+            }
+            var decimals = Core.Config.precision;
+            return +(round(x + "e+" + decimals) + "e-" + decimals);
+        }
+        Core.round = round;
+
+        function roundArray(array) {
+            return array.map(function (x) {
+                return round(x);
+            });
+        }
+        Core.roundArray = roundArray;
+    })(BenchViewer.Core || (BenchViewer.Core = {}));
+    var Core = BenchViewer.Core;
+})(BenchViewer || (BenchViewer = {}));
 /// <reference path="benchmarkStat.ts" />
 /// <reference path="util.ts" />
 var BenchViewer;
@@ -473,7 +515,7 @@ var BenchViewer;
                 var sampleVec = samples.samples;
                 var baselineVec = baseline.samples;
 
-                this.sampleStats.average = Core.Statistics.calculateMean(sampleVec);
+                this.sampleStats.average = Core.Statistics.calculateMean(corrected);
 
                 var meanVar = samples.sampleStats.variance + baseline.sampleStats.variance - Core.Statistics.calculateCovariance(sampleVec, sampleAvg, baselineVec, baselineAvg, this.isSample);
                 this.sampleStats.variance = meanVar / sampleVec.length;
@@ -1102,6 +1144,166 @@ var BenchViewer;
             Benchmark.BenchmarkCase = BenchmarkCase;
         })(Core.Benchmark || (Core.Benchmark = {}));
         var Benchmark = Core.Benchmark;
+    })(BenchViewer.Core || (BenchViewer.Core = {}));
+    var Core = BenchViewer.Core;
+})(BenchViewer || (BenchViewer = {}));
+/// <reference path="config.ts"/>
+var BenchViewer;
+(function (BenchViewer) {
+    (function (Core) {
+        var Statistics = (function () {
+            function Statistics(data, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                this.standardDeviation = 0.0;
+                this.variance = 0.0;
+                this.mean = 0.0;
+                this.mean = Statistics.calculateMean(data);
+                this.variance = Statistics.calculateVariance(data, this.mean, isSample);
+                this.standardDeviation = Statistics.calculateStandardDeviation(this.variance);
+            }
+            Statistics.calculateStandardDeviation = function (variance) {
+                return Math.sqrt(variance);
+            };
+
+            Statistics.calculateMean = function (data) {
+                if (data.length > 0) {
+                    return data.reduce((function (a, b) {
+                        return a + b;
+                    })) / data.length;
+                }
+                return 0;
+            };
+
+            Statistics.calculateVariance = function (data, mean, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                if (data.length > 1) {
+                    var temp = 0.0;
+                    data.forEach((function (element) {
+                        var v = element - mean;
+                        temp += v * v;
+                    }));
+                    return temp / this.getSize(data.length - 1);
+                }
+                return 0;
+            };
+
+            Statistics.calculateCovariance = function (samples, sampleMean, baseline, baselineMean, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                var sampleSize = samples.length;
+                if (sampleSize > 1 && sampleSize == baseline.length) {
+                    var temp = 0;
+
+                    for (var i = 0; i < sampleSize; ++i) {
+                        temp += (samples[i] - sampleMean) * (baseline[i] - baselineMean);
+                    }
+                    return temp / Statistics.getSize(sampleSize, isSample);
+                }
+
+                return 0.0;
+            };
+
+            Statistics.getConfidenceIntervalFromHistory = function (history, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                var interval;
+
+                var historySampleSize = 0;
+                var scaledHistoryPooledVariance = 0;
+                var scaledHistoryMean = 0;
+
+                history.forEach(function (stat) {
+                    historySampleSize += stat.sampleCount;
+                    scaledHistoryMean += stat.sampleCount * stat.average;
+
+                    scaledHistoryPooledVariance += Statistics.getSize(stat.sampleCount, isSample) * stat.variance;
+                });
+
+                var historyPooledStdev = Math.sqrt(scaledHistoryPooledVariance / historySampleSize);
+                var historyMean = scaledHistoryMean / historySampleSize;
+
+                return Statistics.getConfidenceInterval(historyPooledStdev, historySampleSize, historyMean);
+            };
+
+            Statistics.getConfidenceInterval = function (stdev, size, mean) {
+                var interval = new Statistics.ConfidenceInterval;
+
+                if (size > 0) {
+                    var zAlphaOver2 = Statistics.normalCDFInverse(1 - Core.Config.alpha * 0.5);
+                    var offset = (stdev * zAlphaOver2) / Math.sqrt(size);
+
+                    interval.lower = mean - offset;
+                    interval.upper = mean + offset;
+                } else {
+                    interval.lower = 0;
+                    interval.upper = 0;
+                }
+
+                return interval;
+            };
+
+            // ReSharper disable once InconsistentNaming
+            Statistics.normalCDFInverse = function (p) {
+                if (p < 0.5) {
+                    // F^-1(p) = - G^-1(p)
+                    return -Statistics.rationalApproximation(Math.sqrt(-2.0 * Math.log(p)));
+                } else {
+                    // F^-1(p) = G^-1(1-p)
+                    return Statistics.rationalApproximation(Math.sqrt(-2.0 * Math.log(1 - p)));
+                }
+            };
+
+            Statistics.prototype.calculateVariance = function (data, mean, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                if (data.length > 1) {
+                    var temp = 0;
+
+                    data.forEach(function (value) {
+                        var valueSqrt = value - mean;
+                        temp += valueSqrt * valueSqrt;
+                    });
+
+                    return temp / Statistics.getSize(data.length, isSample);
+                }
+
+                return 0.0;
+            };
+
+            Statistics.rationalApproximation = function (t) {
+                // Abramowitz and Stegun formula 26.2.23.
+                // The absolute value of the error should be less than 4.5 e-4.
+                var c = [2.515517, 0.802853, 0.010328];
+                var d = [1.432788, 0.189269, 0.001308];
+                return t - ((c[2] * t + c[1]) * t + c[0]) / (((d[2] * t + d[1]) * t + d[0]) * t + 1.0);
+            };
+
+            Statistics.getSize = function (size, isSample) {
+                if (typeof isSample === "undefined") { isSample = true; }
+                return isSample ? size - 1 : size;
+            };
+            return Statistics;
+        })();
+        Core.Statistics = Statistics;
+
+        (function (Statistics) {
+            var StatHistory = (function () {
+                function StatHistory() {
+                    this.sampleCount = 0;
+                    this.average = 0;
+                    this.variance = 0;
+                }
+                return StatHistory;
+            })();
+            Statistics.StatHistory = StatHistory;
+
+            var ConfidenceInterval = (function () {
+                function ConfidenceInterval() {
+                    this.lower = 0;
+                    this.upper = 0;
+                }
+                return ConfidenceInterval;
+            })();
+            Statistics.ConfidenceInterval = ConfidenceInterval;
+        })(Core.Statistics || (Core.Statistics = {}));
+        var Statistics = Core.Statistics;
     })(BenchViewer.Core || (BenchViewer.Core = {}));
     var Core = BenchViewer.Core;
 })(BenchViewer || (BenchViewer = {}));
@@ -3560,166 +3762,6 @@ var collections;
     })();
     collections.BSTree = BSTree;
 })(collections || (collections = {})); // End of module
-/// <reference path="config.ts"/>
-var BenchViewer;
-(function (BenchViewer) {
-    (function (Core) {
-        var Statistics = (function () {
-            function Statistics(data, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                this.standardDeviation = 0.0;
-                this.variance = 0.0;
-                this.mean = 0.0;
-                this.mean = Statistics.calculateMean(data);
-                this.variance = Statistics.calculateVariance(data, this.mean, isSample);
-                this.standardDeviation = Statistics.calculateStandardDeviation(this.variance);
-            }
-            Statistics.calculateStandardDeviation = function (variance) {
-                return Math.sqrt(variance);
-            };
-
-            Statistics.calculateMean = function (data) {
-                if (data.length > 0) {
-                    return data.reduce((function (a, b) {
-                        return a + b;
-                    })) / data.length;
-                }
-                return 0;
-            };
-
-            Statistics.calculateVariance = function (data, mean, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                if (data.length > 1) {
-                    var temp = 0.0;
-                    data.forEach((function (element) {
-                        var v = element - mean;
-                        temp += v * v;
-                    }));
-                    return temp / this.getSize(data.length - 1);
-                }
-                return 0;
-            };
-
-            Statistics.calculateCovariance = function (samples, sampleMean, baseline, baselineMean, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                var sampleSize = samples.length;
-                if (sampleSize > 1 && sampleSize == baseline.length) {
-                    var temp = 0;
-
-                    for (var i = 0; i < sampleSize; ++i) {
-                        temp += (samples[i] - sampleMean) * (baseline[i] - baselineMean);
-                    }
-                    return temp / Statistics.getSize(sampleSize, isSample);
-                }
-
-                return 0.0;
-            };
-
-            Statistics.getConfidenceIntervalFromHistory = function (history, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                var interval;
-
-                var historySampleSize = 0;
-                var scaledHistoryPooledVariance = 0;
-                var scaledHistoryMean = 0;
-
-                history.forEach(function (stat) {
-                    historySampleSize += stat.sampleCount;
-                    scaledHistoryMean += stat.sampleCount * stat.average;
-
-                    scaledHistoryPooledVariance += Statistics.getSize(stat.sampleCount, isSample) * stat.variance;
-                });
-
-                var historyPooledStdev = Math.sqrt(scaledHistoryPooledVariance / historySampleSize);
-                var historyMean = scaledHistoryMean / historySampleSize;
-
-                return Statistics.getConfidenceInterval(historyPooledStdev, historySampleSize, historyMean);
-            };
-
-            Statistics.getConfidenceInterval = function (stdev, size, mean) {
-                var interval = new Statistics.ConfidenceInterval;
-
-                if (size > 0) {
-                    var zAlphaOver2 = Statistics.normalCDFInverse(1 - Core.Config.alpha * 0.5);
-                    var offset = (stdev * zAlphaOver2) / Math.sqrt(size);
-
-                    interval.lower = mean - offset;
-                    interval.upper = mean + offset;
-                } else {
-                    interval.lower = 0;
-                    interval.upper = 0;
-                }
-
-                return interval;
-            };
-
-            // ReSharper disable once InconsistentNaming
-            Statistics.normalCDFInverse = function (p) {
-                if (p < 0.5) {
-                    // F^-1(p) = - G^-1(p)
-                    return -Statistics.rationalApproximation(Math.sqrt(-2.0 * Math.log(p)));
-                } else {
-                    // F^-1(p) = G^-1(1-p)
-                    return Statistics.rationalApproximation(Math.sqrt(-2.0 * Math.log(1 - p)));
-                }
-            };
-
-            Statistics.prototype.calculateVariance = function (data, mean, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                if (data.length > 1) {
-                    var temp = 0;
-
-                    data.forEach(function (value) {
-                        var valueSqrt = value - mean;
-                        temp += valueSqrt * valueSqrt;
-                    });
-
-                    return temp / Statistics.getSize(data.length, isSample);
-                }
-
-                return 0.0;
-            };
-
-            Statistics.rationalApproximation = function (t) {
-                // Abramowitz and Stegun formula 26.2.23.
-                // The absolute value of the error should be less than 4.5 e-4.
-                var c = [2.515517, 0.802853, 0.010328];
-                var d = [1.432788, 0.189269, 0.001308];
-                return t - ((c[2] * t + c[1]) * t + c[0]) / (((d[2] * t + d[1]) * t + d[0]) * t + 1.0);
-            };
-
-            Statistics.getSize = function (size, isSample) {
-                if (typeof isSample === "undefined") { isSample = true; }
-                return isSample ? size - 1 : size;
-            };
-            return Statistics;
-        })();
-        Core.Statistics = Statistics;
-
-        (function (Statistics) {
-            var StatHistory = (function () {
-                function StatHistory() {
-                    this.sampleCount = 0;
-                    this.average = 0;
-                    this.variance = 0;
-                }
-                return StatHistory;
-            })();
-            Statistics.StatHistory = StatHistory;
-
-            var ConfidenceInterval = (function () {
-                function ConfidenceInterval() {
-                    this.lower = 0;
-                    this.upper = 0;
-                }
-                return ConfidenceInterval;
-            })();
-            Statistics.ConfidenceInterval = ConfidenceInterval;
-        })(Core.Statistics || (Core.Statistics = {}));
-        var Statistics = Core.Statistics;
-    })(BenchViewer.Core || (BenchViewer.Core = {}));
-    var Core = BenchViewer.Core;
-})(BenchViewer || (BenchViewer = {}));
 var BenchViewer;
 (function (BenchViewer) {
     var Label = (function () {
@@ -3768,6 +3810,193 @@ var BenchViewer;
 })(BenchViewer || (BenchViewer = {}));
 var BenchViewer;
 (function (BenchViewer) {
+    (function (Core) {
+        var MicroBoxplot = (function () {
+            function MicroBoxplot(dataFunction, completedHistory, series) {
+                var _this = this;
+                this.dataFunction = dataFunction;
+                this.completedHistory = completedHistory;
+                this.series = series;
+                this.averages = [];
+                this.standardDeviations = [];
+                this.outliers = [];
+                this.values = [];
+                this.completedHistory.forEach(function (result, index) {
+                    var data = _this.dataFunction(result);
+
+                    _this.values.push(Core.roundArray([data.sampleStats.low, data.q1, data.median, data.q3, data.sampleStats.high]));
+                    _this.standardDeviations.push([index, Core.round(data.sampleStats.standardDeviation)]);
+                    _this.averages.push([index, Core.round(data.sampleStats.average)]);
+
+                    for (var j = 0, outlierEnd = data.outliers.length; j < outlierEnd; ++j) {
+                        var outlier = data.outliers[j];
+                        _this.outliers.push([index, Core.round(outlier)]);
+                    }
+                });
+            }
+            MicroBoxplot.prototype.getCategories = function () {
+                var categories = [];
+                this.series.forEach(function (serie) {
+                    return categories.push(serie);
+                });
+                return categories;
+            };
+
+            MicroBoxplot.prototype.renderTo = function (element) {
+                element.highcharts({
+                    chart: {
+                        type: "boxplot",
+                        reflow: true
+                    },
+                    title: {
+                        text: ""
+                    },
+                    xAxis: {
+                        categories: this.getCategories(),
+                        title: {
+                            text: "Series"
+                        }
+                    },
+                    yAxis: {
+                        title: {
+                            text: "Time (ms)"
+                        }
+                    },
+                    series: [
+                        {
+                            name: "Measurements",
+                            data: this.values,
+                            tooltip: {
+                                headerFormat: "<em>Series {point.key}</em><br/>"
+                            }
+                        },
+                        {
+                            name: "Outliers",
+                            type: "scatter",
+                            data: this.outliers,
+                            marker: {
+                                fillColor: "white",
+                                lineWidth: 1,
+                                lineColor: Highcharts.getOptions().colors[0]
+                            },
+                            tooltip: {
+                                pointFormat: "Outlier: {point.y}"
+                            }
+                        },
+                        {
+                            name: "Standard Deviation",
+                            type: "line",
+                            data: this.standardDeviations,
+                            tooltip: {
+                                pointFormat: "Standard Deviation: {point.y}"
+                            }
+                        },
+                        {
+                            name: "Average",
+                            type: "line",
+                            data: this.averages,
+                            tooltip: {
+                                pointFormat: "Average: {point.y}"
+                            }
+                        }
+                    ]
+                });
+            };
+            return MicroBoxplot;
+        })();
+        Core.MicroBoxplot = MicroBoxplot;
+    })(BenchViewer.Core || (BenchViewer.Core = {}));
+    var Core = BenchViewer.Core;
+})(BenchViewer || (BenchViewer = {}));
+var BenchViewer;
+(function (BenchViewer) {
+    (function (Core) {
+        var MicroHistogram = (function () {
+            function MicroHistogram(samples) {
+                this.samples = samples;
+            }
+            MicroHistogram.prototype.renderTo = function (element) {
+                element.highcharts({
+                    chart: {
+                        type: "histogram",
+                        reflow: true
+                    },
+                    title: {
+                        text: "Recent Histogram"
+                    },
+                    plotOptions: {
+                        column: {
+                            pointPadding: 0,
+                            borderWidth: 0,
+                            groupPadding: 0,
+                            shadow: false
+                        }
+                    },
+                    legend: {
+                        enabled: false
+                    },
+                    yAxis: {
+                        title: {
+                            text: "Frequency"
+                        }
+                    },
+                    xAxis: {
+                        title: {
+                            text: "Time (ms)"
+                        }
+                    },
+                    series: [{
+                            name: "Frequency",
+                            data: this.samples
+                        }]
+                });
+            };
+            return MicroHistogram;
+        })();
+        Core.MicroHistogram = MicroHistogram;
+    })(BenchViewer.Core || (BenchViewer.Core = {}));
+    var Core = BenchViewer.Core;
+})(BenchViewer || (BenchViewer = {}));
+var BenchViewer;
+(function (BenchViewer) {
+    var MicroSamplePlot = (function () {
+        function MicroSamplePlot(series) {
+            this.series = series;
+        }
+        MicroSamplePlot.prototype.renderTo = function (element) {
+            element.highcharts({
+                chart: {
+                    type: "line"
+                },
+                title: {
+                    text: ""
+                },
+                xAxis: {
+                    title: {
+                        text: "Sample No."
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: "Time (ms)"
+                    }
+                },
+                plotOptions: {
+                    series: {
+                        marker: {
+                            enabled: false
+                        }
+                    }
+                },
+                series: this.series
+            });
+        };
+        return MicroSamplePlot;
+    })();
+    BenchViewer.MicroSamplePlot = MicroSamplePlot;
+})(BenchViewer || (BenchViewer = {}));
+var BenchViewer;
+(function (BenchViewer) {
     var SubPage = (function () {
         function SubPage(name) {
             this.name = name;
@@ -3776,7 +4005,11 @@ var BenchViewer;
 
             this.header = $("<h2>");
             this.header.addClass("sub-header");
+        }
+        SubPage.prototype.addLabels = function () {
+        };
 
+        SubPage.prototype.renderTo = function (element) {
             this.addLabels();
 
             var benchLabel = this.getBenchmarkLabel();
@@ -3788,12 +4021,8 @@ var BenchViewer;
             this.container.append(this.header);
 
             this.container.append(this.addContent());
-        }
-        SubPage.prototype.renderTo = function (element) {
-            element.append(this.container);
-        };
 
-        SubPage.prototype.addLabels = function () {
+            element.append(this.container);
         };
 
         SubPage.prototype.getBenchmarkLabel = function () {
@@ -3816,21 +4045,43 @@ var __extends = this.__extends || function (d, b) {
 };
 var BenchViewer;
 (function (BenchViewer) {
+    var Regression = BenchViewer.Core.Regression;
+    var Config = BenchViewer.Core.Config;
+    var MicroBoxplot = BenchViewer.Core.MicroBoxplot;
+    var MicroHistogram = BenchViewer.Core.MicroHistogram;
+
     var MicroSubPage = (function (_super) {
         __extends(MicroSubPage, _super);
-        function MicroSubPage(name, benchmark) {
+        function MicroSubPage(benchmark, name) {
+            _super.call(this, name);
+            this.analysis = $("<div>");
+            this.overview = $("<div>");
+            this.corrected = $("<div>");
+            this.raw = $("<div>");
+            this.baseline = $("<div>");
+            this.memory = $("<div>");
+
             this.benchmark = benchmark;
 
-            _super.call(this, name);
+            this.addAnalysis();
+
+            this.addSeries();
+            this.addData();
+
+            this.addCorrected();
+            this.addRaw();
+            this.addBaseline();
+
+            this.addMemory();
         }
         MicroSubPage.prototype.renderTo = function (element) {
             _super.prototype.renderTo.call(this, element);
         };
 
         MicroSubPage.prototype.addLabels = function () {
-            var statusLabel = BenchViewer.Label.status(this.benchmark.current.completed);
+            var statusLabel = BenchViewer.Label.status(this.getMostRecentBenchmark().completed);
             statusLabel.container.addClass("pull-right");
-            statusLabel.renderTo(this.container);
+            statusLabel.renderTo(this.header);
         };
 
         MicroSubPage.prototype.getBenchmarkLabel = function () {
@@ -3838,7 +4089,390 @@ var BenchViewer;
         };
 
         MicroSubPage.prototype.addContent = function () {
+            var tab = new BenchViewer.Tab();
+            tab.addTab("Analysis", this.analysis);
+            tab.addTab("Overview", this.overview);
+            tab.addTab("Corrected", this.corrected);
+            tab.addTab("Raw", this.raw);
+            tab.addTab("Baseline", this.baseline);
+            tab.addTab("Memory", this.memory);
+            tab.renderTo(this.container);
+
             return null;
+        };
+
+        MicroSubPage.prototype.getMostRecentBenchmark = function () {
+            return this.benchmark.benchmarkCase == null ? this.benchmark.history[0] : this.benchmark.current;
+        };
+
+        MicroSubPage.prototype.getHistory = function () {
+            return this.benchmark.benchmarkCase == null ? this.benchmark.history : this.benchmark.history.concat(this.benchmark.current);
+        };
+
+        MicroSubPage.prototype.getCompleted = function () {
+            return this.getHistory().filter(function (benchmark) {
+                return benchmark.completed;
+            });
+        };
+
+        MicroSubPage.prototype.getCompletedSeries = function () {
+            var _this = this;
+            var completed = this.getCompleted();
+            var series = [];
+            if (completed.length > 0) {
+                this.getHistory().forEach(function (element, index) {
+                    if (!element.completed) {
+                        return;
+                    }
+
+                    series.push(_this.getSerie(index));
+                });
+            }
+            return series;
+        };
+
+        MicroSubPage.prototype.addAnalysis = function () {
+            var current = this.getMostRecentBenchmark();
+            var leaks = current.memoryLeaks;
+            var hasLeaks = leaks.length > 0;
+
+            this.analysis.append("<h3>Analysis</h3>");
+
+            if (!hasLeaks && current.regression === 0 /* None */) {
+                if (current.completed) {
+                    this.analysis.append("<p>Everything looks OK!</p>");
+                } else {
+                    this.analysis.append("<p>Oh dear, it looks like this case needs fixing!</p>");
+                }
+            } else {
+                if (current.regression !== 0 /* None */) {
+                    this.analysis.append("<h4>Regressions Detected</h4>");
+
+                    var p = $("<ul>");
+                    if (current.regression & 1 /* TimeSlower */) {
+                        p.append("<li>The case ran <b>slower</b> than expected.</li>");
+                    } else if (current.regression & 2 /* TimeFaster */) {
+                        p.append("<li>The case ran <i>faster</i> than expected.</li>");
+                    }
+
+                    if (current.regression & 4 /* MemSmaller */) {
+                        p.append("<li>The case used <b>less</b> memory than expected.</li>");
+                    } else if (current.regression & 8 /* MemLarger */) {
+                        p.append("<li>The case used <b>more</b> memory than expected.</li>");
+                    }
+
+                    if (current.regression & 32 /* PeakMemLarger */) {
+                        p.append("<li>The peak memory was <b>higher</b> than expected.</li>");
+                    }
+
+                    this.analysis.append(p);
+                }
+            }
+
+            if (hasLeaks) {
+                this.analysis.append("<h3>Memory leaks found</h3>");
+                var leakTable = new BenchViewer.Table();
+                leakTable.setTitle("Memory Leaks");
+                leakTable.setHeader(["File", "Line", "Size"]);
+
+                current.memoryLeaks.forEach(function (element) {
+                    leakTable.addRow([
+                        element.file,
+                        element.line,
+                        element.size
+                    ]);
+                });
+
+                leakTable.renderTo(this.analysis);
+            }
+        };
+
+        MicroSubPage.prototype.addSeries = function () {
+            var _this = this;
+            this.overview.append("<p><h3>Series</h3>To make the results more readable, we categorise each benchmark with a letter.</p>");
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Series");
+            table.setHeader(["Series", "Date", "Status"]);
+
+            this.getHistory().forEach(function (result, index) {
+                table.addRow([
+                    _this.getSerie(index),
+                    result.timestamp,
+                    BenchViewer.Label.status(result.completed)
+                ]);
+            });
+
+            table.renderTo(this.overview);
+        };
+
+        MicroSubPage.prototype.addData = function () {
+            var _this = this;
+            this.overview.append("<p><h3>Data</h3></p>");
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Data");
+            table.setHeader(["Series", "All", "Inliers", "Outliers"]);
+
+            var completed = this.getCompleted();
+            if (completed.length > 0) {
+                this.getHistory().forEach(function (element, index) {
+                    if (!element.completed) {
+                        return;
+                    }
+
+                    var allHtml = element.timeCorrected.samples.join(", ");
+                    var wellAll = $("<div>");
+                    wellAll.addClass("well well-sm");
+                    wellAll.html(allHtml === "" ? "-" : allHtml);
+
+                    var inlierHtml = element.timeCorrected.inliers.join(", ");
+                    var wellInlier = $("<div>");
+                    wellInlier.addClass("well well-sm");
+                    wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
+
+                    var outlierHtml = element.timeCorrected.outliers.join(", ");
+                    var wellOutlier = $("<div>");
+                    wellOutlier.addClass("well well-sm");
+                    wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
+
+                    table.addRow([_this.getSerie(index), wellAll, wellInlier, wellOutlier]);
+                });
+            } else {
+                table.addRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
+            }
+
+            table.renderTo(this.overview);
+        };
+
+        MicroSubPage.prototype.getSerie = function (index) {
+            var s = "";
+            while (index >= 0) {
+                s = String.fromCharCode(index % 26 + "A".charCodeAt(0)) + s;
+                index = Math.floor(index / 26) - 1;
+            }
+            return s;
+        };
+
+        MicroSubPage.prototype.addCorrected = function () {
+            var current = this.getMostRecentBenchmark();
+            if (current.completed) {
+                this.renderCorrectedGraphs(this.corrected);
+            }
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Corrected Measurements");
+            table.setHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+            this.composeRows(table, current.completed, function (data) {
+                return data.timeCorrected;
+            });
+
+            table.renderTo(this.corrected);
+        };
+
+        MicroSubPage.prototype.addRaw = function () {
+            var current = this.getMostRecentBenchmark();
+            if (current.completed) {
+                this.renderSampleGraphs(this.raw);
+            }
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Raw Measurements");
+            table.setHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+            this.composeRows(table, current.completed, function (result) {
+                return result.timeSamples;
+            });
+
+            table.renderTo(this.raw);
+        };
+
+        MicroSubPage.prototype.addBaseline = function () {
+            var current = this.getMostRecentBenchmark();
+            if (current.completed) {
+                this.renderBaselineGraphs(this.baseline);
+            }
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Baseline Measurements");
+            table.setHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+            this.composeRows(table, current.completed, (function (result) {
+                return result.timeBaseline;
+            }));
+
+            table.renderTo(this.baseline);
+        };
+
+        MicroSubPage.prototype.addMemory = function () {
+            var current = this.getMostRecentBenchmark();
+            if (current.completed) {
+                this.renderMemoryGraphs(this.memory);
+            }
+
+            var table = new BenchViewer.Table();
+
+            table.setTitle("Memory Measurements");
+            table.setHeader(["Series", "Average", "Median", "Standard Deviation", "Low", "High"]);
+
+            this.composeRows(table, current.completed, function (result) {
+                return result.memorySamples;
+            });
+
+            table.renderTo(this.memory);
+        };
+
+        MicroSubPage.prototype.renderCorrectedGraphs = function (element) {
+            var tabs = new BenchViewer.Tab(true);
+            tabs.container.addClass("graph-pane");
+
+            var dataFunction = function (result) {
+                return result.timeCorrected;
+            };
+
+            tabs.addTab("Boxplot", this.renderBoxplot(tabs, dataFunction));
+            tabs.addTab("Histogram", this.renderHistogram(tabs, dataFunction));
+            tabs.addTab("Samples", this.renderSamplePlot(tabs, function (result) {
+                return [
+                    {
+                        name: "Raw",
+                        data: result.timeSamples.samples
+                    },
+                    {
+                        name: "Baseline",
+                        data: result.timeBaseline.samples
+                    }];
+            }));
+
+            tabs.renderTo(element);
+        };
+
+        MicroSubPage.prototype.renderSampleGraphs = function (element) {
+            var tabs = new BenchViewer.Tab(true);
+            tabs.container.addClass("graph-pane");
+
+            var dataFunction = function (result) {
+                return result.timeSamples;
+            };
+
+            tabs.addTab("Boxplot", this.renderBoxplot(tabs, dataFunction));
+            tabs.addTab("Histogram", this.renderHistogram(tabs, dataFunction));
+
+            tabs.renderTo(element);
+        };
+
+        MicroSubPage.prototype.renderBaselineGraphs = function (element) {
+            var tabs = new BenchViewer.Tab(true);
+            tabs.container.addClass("graph-pane");
+
+            var dataFunction = function (result) {
+                return result.timeBaseline;
+            };
+
+            tabs.addTab("Boxplot", this.renderBoxplot(tabs, dataFunction));
+            tabs.addTab("Histogram", this.renderHistogram(tabs, dataFunction));
+
+            tabs.renderTo(element);
+        };
+
+        MicroSubPage.prototype.renderMemoryGraphs = function (element) {
+            var tabs = new BenchViewer.Tab(true);
+            tabs.container.addClass("graph-pane");
+
+            var dataFunction = function (result) {
+                return result.timeCorrected;
+            };
+
+            tabs.addTab("Boxplot", this.renderBoxplot(tabs, dataFunction));
+            tabs.addTab("Histogram", this.renderHistogram(tabs, dataFunction));
+            tabs.addTab("Samples", this.renderSamplePlot(tabs, function (result) {
+                return [{
+                        name: "Memory Usage",
+                        data: dataFunction(result).samples
+                    }];
+            }));
+
+            tabs.renderTo(element);
+        };
+
+        MicroSubPage.prototype.composeRows = function (table, completed, dataFunc) {
+            var _this = this;
+            if (completed) {
+                this.getHistory().forEach(function (element, index) {
+                    if (!element.completed) {
+                        return;
+                    }
+
+                    var data = dataFunc(element);
+
+                    var med = data.median.toFixed(Config.precision);
+                    var avg = data.sampleStats.average.toFixed(Config.precision);
+                    var sd = data.sampleStats.standardDeviation.toFixed(Config.precision);
+                    var low = data.sampleStats.low.toFixed(Config.precision);
+                    var high = data.sampleStats.high.toFixed(Config.precision);
+                    table.addRow([_this.getSerie(index), avg, med, sd, low, high]);
+                });
+            } else {
+                table.addRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
+            }
+        };
+
+        MicroSubPage.prototype.renderBoxplot = function (tabs, dataFunction) {
+            var div = $("<div>");
+            div.addClass("graph");
+
+            var graph = new MicroBoxplot(dataFunction, this.getCompleted(), this.getCompletedSeries());
+            graph.renderTo(div);
+
+            return div;
+        };
+
+        MicroSubPage.prototype.renderHistogram = function (tabs, dataFunction) {
+            var div = $("<div>");
+            div.addClass("graph");
+
+            var current = this.getMostRecentBenchmark();
+            if (current.completed) {
+                var samples = dataFunction(current).samples;
+                if (samples.length > 1) {
+                    var graph = new MicroHistogram(samples);
+                    graph.renderTo(div);
+                } else {
+                    div.append("<h4>Not enough data to show!</h4>");
+                }
+            } else {
+                div.append("<h4>The most recent benchmark failed!</h4>");
+            }
+
+            return div;
+        };
+
+        MicroSubPage.prototype.renderSamplePlot = function (tabs, dataFunction) {
+            var div = $("<div>");
+            div.addClass("graph");
+
+            var current = this.benchmark.current;
+            if (current.completed) {
+                var samples = dataFunction(current);
+                if (samples.length > 1) {
+                    var graph = new BenchViewer.MicroSamplePlot({
+                        "series": samples
+                    });
+                    graph.renderTo(div);
+                } else {
+                    div.append("<h4>Not enough data to show!</h4>");
+                }
+            } else {
+                div.append("<h4>The most recent benchmark failed!</h4>");
+            }
+
+            return div;
         };
         return MicroSubPage;
     })(BenchViewer.SubPage);
@@ -3867,7 +4501,7 @@ var BenchViewer;
         Page.prototype.renderTo = function (element) {
             var _this = this;
             this.group.micros.all.forEach(function (name, benchmark) {
-                var page = new BenchViewer.MicroSubPage(name, (benchmark));
+                var page = new BenchViewer.MicroSubPage((benchmark), name);
                 page.renderTo(_this.container);
             });
 
@@ -3882,9 +4516,157 @@ var BenchViewer;
     BenchViewer.Page = Page;
 })(BenchViewer || (BenchViewer = {}));
 var BenchViewer;
+(function (BenchViewer) {
+    var Guid = BenchViewer.Core.guid;
+
+    var Tab = (function () {
+        function Tab(vertical) {
+            if (typeof vertical === "undefined") { vertical = false; }
+            this.vertical = vertical;
+            this.htmlClass = "tab-me";
+            this.size = 0;
+            this.container = $("<div>");
+            this.ul = $("<ul>");
+            this.ul.addClass("nav nav-tabs");
+            this.ul.attr("role", "tablist");
+
+            this.content = $("<div>");
+            this.content.addClass("tab-content");
+
+            if (this.vertical) {
+                this.ul.addClass("tabs-left");
+
+                var tabDiv = $("<div>");
+                tabDiv.addClass("col-xs-3 col-md-2");
+                tabDiv.append(this.ul);
+
+                var contentDiv = $("<div>");
+                contentDiv.addClass("col-xs-7 col-md10");
+                contentDiv.append(this.content);
+
+                this.container.addClass("container-fluid");
+
+                this.container.append(tabDiv);
+                this.container.append(contentDiv);
+            } else {
+                this.container.append(this.ul);
+                this.container.append(this.content);
+            }
+        }
+        Tab.prototype.addTab = function (name, contents) {
+            var first = this.size++ === 0;
+            var li = $("<li>");
+            var link = $("<a>");
+
+            var id = Guid();
+
+            link.attr("href", "#" + id);
+            link.addClass(this.htmlClass);
+
+            link.html(name);
+
+            li.append(link);
+
+            this.ul.append(li);
+
+            var pane = $("<div>");
+            pane.addClass("tab-pane inner-tab-pane");
+
+            pane.attr("id", id);
+            pane.append(contents);
+
+            if (first) {
+                li.addClass("active");
+                pane.addClass("active");
+            }
+
+            this.content.append(pane);
+
+            return id;
+        };
+
+        Tab.prototype.renderTo = function (element) {
+            element.append(this.container);
+        };
+        return Tab;
+    })();
+    BenchViewer.Tab = Tab;
+})(BenchViewer || (BenchViewer = {}));
+var BenchViewer;
+(function (BenchViewer) {
+    var Table = (function () {
+        function Table() {
+            this.columns = 0;
+            this.rows = 0;
+            this.container = $("<div>");
+            this.title = $("<div>");
+            this.table = $("<table>");
+            this.tableHeader = $("<tr>");
+            this.tableBody = $("<tbody>");
+            this.container.addClass("panel panel-default");
+            this.title.addClass("panel-heading");
+            this.table.addClass("table table-striped");
+            this.table.attr("data-sortable", " ");
+
+            var thead = $("<thead>");
+            thead.append(this.tableHeader);
+
+            this.table.append(thead);
+            this.table.append(this.tableBody);
+
+            this.container.append(this.title);
+            this.container.append(this.table);
+        }
+        Table.prototype.setTitle = function (name) {
+            this.title.html(name);
+        };
+
+        Table.prototype.setHeader = function (titles) {
+            for (var i = 0, end = titles.length; i < end; ++i) {
+                var th = $("<th>");
+                th.html(titles[i]);
+                this.tableHeader.append(th);
+            }
+            this.columns = titles.length;
+        };
+
+        Table.prototype.addRow = function (data) {
+            var tr = $("<tr>");
+            for (var i = 0, end = data.length; i < end; ++i) {
+                var td = $("<td>");
+                td.html(data[i]);
+
+                tr.append(td);
+            }
+            this.tableBody.append(tr);
+
+            ++this.rows;
+        };
+
+        Table.prototype.addRowspan = function (html) {
+            var tr = $("<tr>");
+            var td = $("<td>");
+            td.attr("colspan", this.columns);
+            td.append(html);
+            tr.append(td);
+
+            this.tableBody.append(tr);
+
+            ++this.rows;
+        };
+
+        Table.prototype.renderTo = function (element) {
+            element.append(this.container);
+        };
+        return Table;
+    })();
+    BenchViewer.Table = Table;
+})(BenchViewer || (BenchViewer = {}));
+var BenchViewer;
 (function (_BenchViewer) {
     var BenchViewer = (function () {
         function BenchViewer(benchmarkData) {
+            this.pages = [];
             this.benchLib = new _BenchViewer.BenchLib(benchmarkData);
             this.benchLib.runBenchmarks();
             this.render();
@@ -3892,8 +4674,8 @@ var BenchViewer;
         BenchViewer.prototype.render = function () {
             this.addDefaultPages();
 
-            this.renderMenu();
             this.renderPages();
+            this.renderMenu();
         };
 
         BenchViewer.prototype.addPage = function () {
@@ -3903,12 +4685,15 @@ var BenchViewer;
         };
 
         BenchViewer.prototype.renderPages = function () {
+            var _this = this;
             var main = $("<div>");
             main.addClass("tab-content");
 
             this.benchLib.groups.forEach(function (name, group) {
                 var page = new _BenchViewer.Page(name, group);
                 page.renderTo(main);
+
+                _this.pages.push(page);
             });
 
             $("#main").append(main);
@@ -3919,7 +4704,7 @@ var BenchViewer;
             var pageUl = $("<ul>");
             pageUl.addClass("nav nav-sidebar");
 
-            this.benchLib.groups.forEach(function (name, group) {
+            this.pages.forEach(function (page) {
             });
 
             $("#page-navigation").append(pageUl);
@@ -3930,6 +4715,13 @@ var BenchViewer;
 
     window.onload = function () {
         var viewer = new BenchViewer(benchmarkData);
+
+        $("body").scrollspy({ target: ".nav-sub-container" });
+
+        $(".tab-me").click(function (e) {
+            e.preventDefault();
+            $(this).tab('show');
+        });
     };
 })(BenchViewer || (BenchViewer = {}));
 //# sourceMappingURL=benchViewer.js.map

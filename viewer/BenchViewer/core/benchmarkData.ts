@@ -126,7 +126,7 @@ module BenchViewer.Core
             var sampleVec: Array< number > = samples.samples;
             var baselineVec: Array< number > = baseline.samples;
 
-            this.sampleStats.average = Statistics.calculateMean( sampleVec );
+            this.sampleStats.average = Statistics.calculateMean( corrected );
 
             var meanVar: number = samples.sampleStats.variance + baseline.sampleStats.variance -
                 Statistics.calculateCovariance( sampleVec, sampleAvg, baselineVec, baselineAvg, this.isSample );
