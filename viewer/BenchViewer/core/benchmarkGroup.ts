@@ -86,7 +86,7 @@ module BenchViewer.Core
             var regressed: IBenchmarkCase[] = [];
             this.completed.forEach( completed =>
             {
-                if ( completed.getRegression() != Regression.None )
+                if ( completed.getRegression() !== Regression.None )
                 {
                     regressed.push(completed );
                 }

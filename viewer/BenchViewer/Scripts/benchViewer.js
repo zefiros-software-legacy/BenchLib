@@ -66,7 +66,7 @@
             BenchmarkGroup.prototype.getRegressed = function () {
                 var regressed = [];
                 this.completed.forEach(function (completed) {
-                    if (completed.getRegression() != 0 /* None */) {
+                    if (completed.getRegression() !== 0 /* None */) {
                         regressed.push(completed);
                     }
                 });
@@ -569,6 +569,7 @@ var BenchViewer;
             };
 
             BenchmarkData.prototype.calculatePercentileStats = function (calculateStatistics) {
+                var _this = this;
                 if (typeof calculateStatistics === "undefined") { calculateStatistics = true; }
                 if (!this.isValid()) {
                     return;
@@ -590,12 +591,11 @@ var BenchViewer;
                 var IQR = this.q3 - this.q1;
                 var lower = this.q1 - 1.5 * IQR;
                 var upper = this.q3 + 1.5 * IQR;
-
                 sortedSamples.forEach((function (value) {
                     if (lower <= value && value <= upper) {
-                        this.inliers.unshift(value);
+                        _this.inliers.unshift(value);
                     } else {
-                        this.outliers.unshift(value);
+                        _this.outliers.unshift(value);
                     }
                 }));
 
@@ -763,7 +763,7 @@ var BenchViewer;
                             this.memoryCorrected.deserialise(object["memoryCorrected"]);
 
                             var memoryLeaks = object["memoryLeaks"];
-                            if (memoryLeaks !== undefined) {
+                            if (memoryLeaks !== undefined && memoryLeaks !== null) {
                                 memoryLeaks.forEach(function (leak) {
                                     var nLeak = new Core.MemLeak();
                                     nLeak.deserialise(leak);
@@ -927,7 +927,7 @@ var BenchViewer;
                             var sampleStat = result.memoryCorrected.sampleStats;
 
                             if (result.memoryProfile && sampleCount > 0) {
-                                var stat;
+                                var stat = new Core.Statistics.StatHistory();
                                 stat.average = sampleStat.average;
                                 stat.variance = sampleStat.variance;
                                 stat.sampleCount = sampleCount;
@@ -1190,7 +1190,7 @@ var BenchViewer;
             Statistics.calculateCovariance = function (samples, sampleMean, baseline, baselineMean, isSample) {
                 if (typeof isSample === "undefined") { isSample = true; }
                 var sampleSize = samples.length;
-                if (sampleSize > 1 && sampleSize == baseline.length) {
+                if (sampleSize > 1 && sampleSize === baseline.length) {
                     var temp = 0;
 
                     for (var i = 0; i < sampleSize; ++i) {
@@ -3799,15 +3799,6 @@ var BenchViewer;
     })();
     BenchViewer.Label = Label;
 })(BenchViewer || (BenchViewer = {}));
-/// <reference path="../core/benchmarkGroup.ts" />
-var BenchViewer;
-(function (BenchViewer) {
-    var MenuGroup = (function () {
-        function MenuGroup() {
-        }
-        return MenuGroup;
-    })();
-})(BenchViewer || (BenchViewer = {}));
 var BenchViewer;
 (function (BenchViewer) {
     (function (Core) {
@@ -4066,7 +4057,6 @@ var BenchViewer;
             this.addAnalysis();
 
             this.addSeries();
-            this.addData();
 
             this.addCorrected();
             this.addRaw();
@@ -4194,55 +4184,37 @@ var BenchViewer;
             var table = new BenchViewer.Table();
 
             table.setTitle("Series");
-            table.setHeader(["Series", "Date", "Status"]);
+            table.setHeader(["Series", "Date", "Status", "All", "Inliers", "Outliers"]);
 
             this.getHistory().forEach(function (result, index) {
+                var labelDiv = $("<div>");
+                var label = BenchViewer.Label.status(result.completed);
+                label.renderTo(labelDiv);
+
+                var allHtml = result.timeCorrected.samples.join(", ");
+                var wellAll = $("<div>");
+                wellAll.addClass("well well-sm");
+                wellAll.html(allHtml === "" ? "-" : allHtml);
+
+                var inlierHtml = result.timeCorrected.inliers.join(", ");
+                var wellInlier = $("<div>");
+                wellInlier.addClass("well well-sm");
+                wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
+
+                var outlierHtml = result.timeCorrected.outliers.join(", ");
+                var wellOutlier = $("<div>");
+                wellOutlier.addClass("well well-sm");
+                wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
+
                 table.addRow([
                     _this.getSerie(index),
                     result.timestamp,
-                    BenchViewer.Label.status(result.completed)
+                    labelDiv,
+                    wellAll,
+                    wellInlier,
+                    wellOutlier
                 ]);
             });
-
-            table.renderTo(this.overview);
-        };
-
-        MicroSubPage.prototype.addData = function () {
-            var _this = this;
-            this.overview.append("<p><h3>Data</h3></p>");
-
-            var table = new BenchViewer.Table();
-
-            table.setTitle("Data");
-            table.setHeader(["Series", "All", "Inliers", "Outliers"]);
-
-            var completed = this.getCompleted();
-            if (completed.length > 0) {
-                this.getHistory().forEach(function (element, index) {
-                    if (!element.completed) {
-                        return;
-                    }
-
-                    var allHtml = element.timeCorrected.samples.join(", ");
-                    var wellAll = $("<div>");
-                    wellAll.addClass("well well-sm");
-                    wellAll.html(allHtml === "" ? "-" : allHtml);
-
-                    var inlierHtml = element.timeCorrected.inliers.join(", ");
-                    var wellInlier = $("<div>");
-                    wellInlier.addClass("well well-sm");
-                    wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
-
-                    var outlierHtml = element.timeCorrected.outliers.join(", ");
-                    var wellOutlier = $("<div>");
-                    wellOutlier.addClass("well well-sm");
-                    wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
-
-                    table.addRow([_this.getSerie(index), wellAll, wellInlier, wellOutlier]);
-                });
-            } else {
-                table.addRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
-            }
 
             table.renderTo(this.overview);
         };
@@ -4667,6 +4639,7 @@ var BenchViewer;
     var BenchViewer = (function () {
         function BenchViewer(benchmarkData) {
             this.pages = [];
+            this.menuPages = [];
             this.benchLib = new _BenchViewer.BenchLib(benchmarkData);
             this.benchLib.runBenchmarks();
             this.render();
@@ -4700,11 +4673,18 @@ var BenchViewer;
         };
 
         BenchViewer.prototype.renderMenu = function () {
+            var _this = this;
             var title = "BenchViewer";
             var pageUl = $("<ul>");
             pageUl.addClass("nav nav-sidebar");
 
             this.pages.forEach(function (page) {
+                var li = $("<li>");
+                var menu = new MenuPage(page);
+                menu.renderTo(li);
+
+                pageUl.append(li);
+                _this.pages.push(page);
             });
 
             $("#page-navigation").append(pageUl);

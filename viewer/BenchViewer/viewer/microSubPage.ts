@@ -27,7 +27,6 @@ module BenchViewer
             this.addAnalysis();
 
             this.addSeries();
-            this.addData();
 
             this.addCorrected();
             this.addRaw();
@@ -181,63 +180,39 @@ module BenchViewer
             var table = new Table();
 
             table.setTitle("Series");
-            table.setHeader(["Series", "Date", "Status"]);
+            table.setHeader(["Series", "Date", "Status", "All", "Inliers", "Outliers"]);
 
             this.getHistory().forEach( (result, index) =>
             {
+                var labelDiv: JQuery = $("<div>");
+                var label: Label = Label.status(result.completed);
+                label.renderTo(labelDiv);
+
+                var allHtml = result.timeCorrected.samples.join(", ");
+                var wellAll = $("<div>");
+                wellAll.addClass("well well-sm");
+                wellAll.html(allHtml === "" ? "-" : allHtml);
+
+                var inlierHtml = result.timeCorrected.inliers.join(", ");
+                var wellInlier = $("<div>");
+                wellInlier.addClass("well well-sm");
+                wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
+
+
+                var outlierHtml = result.timeCorrected.outliers.join(", ");
+                var wellOutlier = $("<div>");
+                wellOutlier.addClass("well well-sm");
+                wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
+
                 table.addRow([
                     this.getSerie(index),
                     result.timestamp,
-                    Label.status(result.completed)
+                    labelDiv,
+                    wellAll,
+                    wellInlier,
+                    wellOutlier
                 ]);
             } );
-
-            table.renderTo(this.overview);
-        }
-
-        private addData()
-        {
-            this.overview.append("<p><h3>Data</h3></p>");
-
-            var table = new Table();
-
-            table.setTitle("Data");
-            table.setHeader(["Series", "All", "Inliers", "Outliers"]);
-
-
-            var completed = this.getCompleted();
-            if (completed.length > 0)
-            {
-                this.getHistory().forEach( (element, index) =>
-                {
-                    if ( !element.completed )
-                    {
-                        return;
-                    }
-
-                    var allHtml = element.timeCorrected.samples.join(", ");
-                    var wellAll = $("<div>");
-                    wellAll.addClass("well well-sm");
-                    wellAll.html(allHtml === "" ? "-" : allHtml);
-
-                    var inlierHtml = element.timeCorrected.inliers.join(", ");
-                    var wellInlier = $("<div>");
-                    wellInlier.addClass("well well-sm");
-                    wellInlier.html(inlierHtml === "" ? "-" : inlierHtml);
-
-
-                    var outlierHtml = element.timeCorrected.outliers.join(", ");
-                    var wellOutlier = $("<div>");
-                    wellOutlier.addClass("well well-sm");
-                    wellOutlier.html(outlierHtml === "" ? "-" : outlierHtml);
-
-                    table.addRow([this.getSerie(index), wellAll, wellInlier, wellOutlier]);
-                });
-            }
-            else
-            {
-                table.addRowspan("<h4 class=\"center\">Bollocks, no information to show.</h4>");
-            }
 
             table.renderTo(this.overview);
         }

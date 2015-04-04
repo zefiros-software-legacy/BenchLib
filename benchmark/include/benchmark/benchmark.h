@@ -35,6 +35,7 @@
 #include "benchmark/util.h"
 
 #include <vector>
+#include <mutex>
 #include <cmath>
 
 namespace BenchLib
@@ -380,6 +381,7 @@ namespace BenchLib
     private:
 
         std::vector< BenchmarkResult<> > mHistory;
+        std::mutex mMutex;
 
         BenchmarkResult< true > mCurrent;
 
@@ -414,6 +416,8 @@ namespace BenchLib
             for ( volatile std::size_t i = 0; i < sampleCount; ++i )
             {
                 {
+                    std::lock_guard< std::mutex > lock( mMutex );
+
                     TimePoint startTime = Clock::now();
 
                     for ( volatile std::size_t j = 0; j < operationCount; ++j )

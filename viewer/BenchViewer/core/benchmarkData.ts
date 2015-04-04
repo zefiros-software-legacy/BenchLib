@@ -212,8 +212,7 @@ module BenchViewer.Core
             var IQR: number = this.q3 - this.q1;
             var lower: number = this.q1 - 1.5 * IQR;
             var upper: number = this.q3 + 1.5 * IQR;
-
-            sortedSamples.forEach( ( function( value )
+            sortedSamples.forEach( ( value =>
             {
                 if ( lower <= value && value <= upper )
                 {

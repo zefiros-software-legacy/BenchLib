@@ -74,7 +74,7 @@
     <TypeScriptCompile Include="core\util.ts" />
     <TypeScriptCompile Include="core\statistics.ts" />
     <TypeScriptCompile Include="viewer\label.ts" />
-    <TypeScriptCompile Include="viewer\menuGroup.ts" />
+    <TypeScriptCompile Include="viewer\menuPage.ts" />
     <TypeScriptCompile Include="viewer\microBoxplot.ts" />
     <TypeScriptCompile Include="viewer\microHistogram.ts" />
     <TypeScriptCompile Include="viewer\microSamplePlot.ts" />

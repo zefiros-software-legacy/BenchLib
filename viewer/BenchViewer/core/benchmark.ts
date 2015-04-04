@@ -150,7 +150,7 @@ module BenchViewer.Core
 
                         if ( result.memoryProfile && sampleCount > 0 )
                         {
-                            var stat: Statistics.StatHistory;
+                            var stat: Statistics.StatHistory = new Statistics.StatHistory();
                             stat.average = sampleStat.average;
                             stat.variance = sampleStat.variance;
                             stat.sampleCount = sampleCount;

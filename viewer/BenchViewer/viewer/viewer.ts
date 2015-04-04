@@ -8,6 +8,7 @@ module BenchViewer
     {
         public benchLib: BenchLib;
         public pages: Page[] = [];
+        public menuPages: MenuPage[] = [];
 
         constructor(benchmarkData)
         {
@@ -57,6 +58,12 @@ module BenchViewer
 
             this.pages.forEach( page =>
             {
+                var li = $("<li>");
+                var menu = new MenuPage(page);
+                menu.renderTo(li);
+
+                pageUl.append( li );
+                this.pages.push(page);
             });
 
             $( "#page-navigation" ).append( pageUl );

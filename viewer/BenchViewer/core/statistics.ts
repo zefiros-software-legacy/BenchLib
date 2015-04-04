@@ -48,7 +48,7 @@ module BenchViewer.Core
                                     baseline: Array< number >, baselineMean: number, isSample: boolean = true ): number
         {
             var sampleSize: number = samples.length;
-            if ( sampleSize > 1 && sampleSize == baseline.length )
+            if ( sampleSize > 1 && sampleSize === baseline.length )
             {
                 var temp: number = 0;
 

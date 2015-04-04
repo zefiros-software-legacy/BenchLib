@@ -114,7 +114,7 @@ module BenchViewer.Core
                         this.memoryCorrected.deserialise(object["memoryCorrected"]);
 
                         var memoryLeaks = object[ "memoryLeaks" ];
-                        if ( memoryLeaks !== undefined )
+                        if ( memoryLeaks !== undefined && memoryLeaks !== null )
                         {
                             memoryLeaks.forEach(leak =>
                             {
