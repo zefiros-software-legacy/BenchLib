@@ -68,7 +68,7 @@ namespace BenchLib
     }                                                                                                   \
     inline void __Benchmark::CONCAT( ___, group, ___, name )::BCase::Run()
 
-#define EXTMICRO( group, name, samples, memoryProfile, code )                                           \
+#define EXTMICRO( group, name, samples, memoryProfile, ...  )                                           \
     namespace __Benchmark                                                                               \
     {                                                                                                   \
         namespace CONCAT( ___, group, ___, name )                                                       \
@@ -103,7 +103,7 @@ namespace BenchLib
                 }                                                                                       \
                 struct Setup                                                                            \
                         : public Case                                                                   \
-                        code;                                                                           \
+                        __VA_ARGS__;                                                                    \
             };                                                                                          \
         }                                                                                               \
         volatile bool CONCAT( ___gResult, group, ___, name ) =                                          \
