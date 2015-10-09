@@ -67,6 +67,11 @@ namespace BenchLib
             {
 
             }
+
+            std::mutex mRunMutex;
+            std::mutex mBaselineMutex;
+            std::mutex mInitMutex;
+            std::mutex mFinaliseMutex;
         };
 
         Benchmark()
@@ -214,7 +219,7 @@ namespace BenchLib
                                               mCurrent.GetTimeCorrected().GetSampleStats();
 
                 Statistics<double>::GetConfidenceInterval( stats.standardDeviation, mCurrent.GetSampleCount(), stats.average,
-                        currentInterval );
+                                                           currentInterval );
 
 
                 if ( currentInterval.upper < histInterval.lower )
@@ -279,7 +284,7 @@ namespace BenchLib
 
                     Statistics<double, int64_t>::ConfidenceInterval peakInterval;
                     Statistics<double, int64_t>::GetConfidenceInterval( peakStats.standardDeviation, peaks.size(), peakStats.average,
-                            peakInterval );
+                                                                        peakInterval );
 
                     if ( sampleStats.high < peakInterval.lower )
                     {
@@ -416,27 +421,31 @@ namespace BenchLib
             for ( volatile std::size_t i = 0; i < sampleCount; ++i )
             {
                 {
-                    std::lock_guard< std::mutex > lock( mMutex );
-
                     TimePoint startTime = Clock::now();
-
-                    for ( volatile std::size_t j = 0; j < operationCount; ++j )
                     {
-                        RunBaseline();
+                        std::lock_guard< std::mutex > lock( mMutex );
+
+                        for ( volatile std::size_t j = 0; j < operationCount; ++j )
+                        {
+                            RunSamples();
+                        }
                     }
 
-                    baseline[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
+                    samples[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
                 }
 
                 {
                     TimePoint startTime = Clock::now();
-
-                    for ( volatile std::size_t j = 0; j < operationCount; ++j )
                     {
-                        RunSamples();
+                        std::lock_guard< std::mutex > lock( mMutex );
+
+                        for ( volatile std::size_t j = 0; j < operationCount; ++j )
+                        {
+                            RunBaseline();
+                        }
                     }
 
-                    samples[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
+                    baseline[i] = Timer<>::GetDuration( startTime ).count() / operationCount;
                 }
             }
 
@@ -486,16 +495,34 @@ namespace BenchLib
 
         inline void RunSamples()
         {
-            mBenchmarkCase->Init();
-            mBenchmarkCase->Run();
-            mBenchmarkCase->Finalise();
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mInitMutex );
+                mBenchmarkCase->Init();
+            }
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mRunMutex );
+                mBenchmarkCase->Run();
+            }
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mFinaliseMutex );
+                mBenchmarkCase->Finalise();
+            }
         }
 
         inline void RunBaseline()
         {
-            mBenchmarkCase->Init();
-            mBenchmarkCase->Baseline();
-            mBenchmarkCase->Finalise();
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mInitMutex );
+                mBenchmarkCase->Init();
+            }
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mBaselineMutex );
+                mBenchmarkCase->Baseline();
+            }
+            {
+                std::lock_guard< std::mutex > lock( mBenchmarkCase->mFinaliseMutex );
+                mBenchmarkCase->Finalise();
+            }
         }
 
     };
