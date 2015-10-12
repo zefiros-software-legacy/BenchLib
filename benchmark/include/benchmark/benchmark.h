@@ -48,6 +48,10 @@ namespace BenchLib
 
         struct Case
         {
+            virtual ~Case()
+            {
+            }
+
             virtual void Run()
             {
 

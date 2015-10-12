@@ -33,13 +33,13 @@ namespace BenchLib
     public:
 
         BenchmarkResult()
-            : mOperationCount( 0 ),
+            : mTimeCorrected( true ),
+              mMemoryCorrected( true ),
+              mOperationCount( 0 ),
               mSampleCount( 0 ),
               mRegression( 0 ),
               mMemoryProfile( true ),
-              mCompleted( false ),
-              mTimeCorrected( true ),
-              mMemoryCorrected( true )
+              mCompleted( false )
         {
         }
 
@@ -59,8 +59,10 @@ namespace BenchLib
                 writer.String( "regression" );
                 writer.Uint( mRegression );
 
-#pragma warning(push)
-#pragma warning(disable: 4127)
+#ifdef _WIN32
+#   pragma warning(push)
+#   pragma warning(disable: 4127)
+#endif
 
                 if ( isCurrent )
                 {
@@ -71,7 +73,9 @@ namespace BenchLib
                     mTimeBaseline.Serialise( writer );
                 }
 
-#pragma warning(disable: 4127)
+#ifdef _WIN32
+#   pragma warning(disable: 4127)
+#endif
 
                 writer.String( "timeCorrected" );
                 mTimeCorrected.Serialise( writer );
@@ -132,8 +136,10 @@ namespace BenchLib
                     mRegression = 0;
                 }
 
-#pragma warning(push)
-#pragma warning(disable: 4127)
+#ifdef _WIN32
+#   pragma warning(push)
+#   pragma warning(disable: 4127)
+#endif
 
                 if ( isCurrent )
                 {
@@ -141,7 +147,9 @@ namespace BenchLib
                     mTimeBaseline.Deserialise( reader["timeBaseline"] );
                 }
 
-#pragma warning(disable: 4127)
+#ifdef _WIN32
+#   pragma warning(disable: 4127)
+#endif
 
                 if ( !reader.HasMember( "timeCorrected" ) )
                 {

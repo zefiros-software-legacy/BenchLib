@@ -42,8 +42,8 @@ namespace BenchLib
         }
 
         Group( const std::string &name )
-            : mName( name ),
-              mMicros( name )
+            : mMicros( name ),
+              mName( name )
         {
         }
 

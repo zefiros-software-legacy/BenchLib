@@ -224,12 +224,15 @@ namespace BenchLib
             const std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
             std::time_t now_c = std::chrono::system_clock::to_time_t( now );
 
-#pragma warning(push)
-#pragma warning(disable:4996)
+#ifdef _WIN32
+#   pragma warning(push)
+#   pragma warning(disable:4996)
+#endif
             char buffer[32];
             std::strftime( buffer, 32, "%Y-%m-%dT%H:%M:%SZ", std::localtime( &now_c ) );
-#pragma warning(pop)
-
+#ifdef _WIN32
+#   pragma warning(pop)
+#endif
             gConfig.timestamp = buffer;
         }
 
@@ -386,6 +389,8 @@ namespace BenchLib
 
             std::size_t Tell() const
             {
+                assert( false && "Should not be used" );
+                return 0;
             }
 
             char *PutBegin()

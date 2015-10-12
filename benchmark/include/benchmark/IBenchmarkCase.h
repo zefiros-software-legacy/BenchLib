@@ -33,6 +33,10 @@ namespace BenchLib
     {
     public:
 
+        virtual ~IBenchmarkCase()
+        {
+        }
+
         virtual void OnInit() = 0;
 
         virtual void OnRun() = 0;

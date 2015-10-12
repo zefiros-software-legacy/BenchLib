@@ -24,8 +24,11 @@
 #ifndef __BENCHLIB__STATISTICS_H__
 #define __BENCHLIB__STATISTICS_H__
 
+#include "benchmark/config.h"
+
 #include <assert.h>
 #include <numeric>
+#include <limits>
 #include <vector>
 #include <cmath>
 
