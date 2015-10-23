@@ -26,8 +26,8 @@
 
 #include "benchmark/console.h"
 
-#include <unordered_map>
 #include <vector>
+#include <map>
 
 namespace BenchLib
 {
@@ -187,7 +187,7 @@ namespace BenchLib
 
     private:
 
-        std::unordered_map<std::string, tBenchmarkType * > mAll;
+        std::map<std::string, tBenchmarkType * > mAll;
 
         std::vector< tBenchmarkType *> mCompleted;
         std::vector< tBenchmarkType *> mFailed;

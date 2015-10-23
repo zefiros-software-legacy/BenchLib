@@ -89,6 +89,30 @@ namespace BenchLib
             return 0;
         }
 
+        static tDataType CalculateVariance( const std::vector< tSampleType > &samples, tDataType sampleMean,
+                                            const std::vector< tSampleType > &baseline, tDataType baselineMean, size_t operationCount )
+        {
+            const std::size_t sampleSize = samples.size();
+
+            if ( sampleSize > 1 && sampleSize == baseline.size() )
+            {
+                tDataType temp = 0;
+                tDataType tempE = 0;
+                tDataType tempC = 0;
+
+                for ( std::size_t i = 0; i < sampleSize; ++i )
+                {
+                    temp += ( samples[i] - sampleMean ) * ( samples[i] - sampleMean );
+                    tempE += ( baseline[i] - baselineMean ) * ( baseline[i] - baselineMean );
+                    tempC += ( baseline[i] - baselineMean ) * ( samples[i] - sampleMean );
+                }
+
+                return operationCount * ( temp - tempE + tempC ) / sampleSize;
+            }
+
+            return 0.0f;
+        }
+
         static tDataType CalculateCovariance( const std::vector< tSampleType > &samples, tDataType sampleMean,
                                               const std::vector< tSampleType > &baseline, tDataType baselineMean )
         {

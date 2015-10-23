@@ -176,7 +176,7 @@ namespace BenchLib
         }
 
         void SetSamplesForCorrection( const BenchmarkData< tDataType, tSampleType, isSample > &samples,
-                                      const BenchmarkData< tDataType, tSampleType, isSample > &baseline )
+                                      const BenchmarkData< tDataType, tSampleType, isSample > &baseline, size_t operationCount )
         {
             const tDataType baselineAvg = baseline.GetSampleStats().average;
             const tDataType sampleAvg = samples.GetSampleStats().average;
@@ -195,11 +195,8 @@ namespace BenchLib
 
             mSampleStats.average = Statistics< tDataType, tSampleType, isSample>::CalculateMean( corrected );
 
-            tDataType meanVar =  samples.GetSampleStats().variance + baseline.GetSampleStats().variance -
-                                 2 * Statistics< tDataType, tSampleType, isSample>::CalculateCovariance( sampleVec, sampleAvg,
-                                         baselineVec, baselineAvg );
-
-            mSampleStats.variance = meanVar / sampleVec.size();
+            mSampleStats.variance = Statistics< tDataType, tSampleType, isSample>::CalculateVariance( sampleVec, sampleAvg,
+                                                                                                      baselineVec, baselineAvg, operationCount );
 
             mSampleStats.standardDeviation = Statistics< tDataType, tSampleType, isSample>::CalculateStandardDeviation(
                                                  mSampleStats.variance );
@@ -216,12 +213,12 @@ namespace BenchLib
 
                 tDataType wmeanVar = samples.GetWingsorisedStats().variance + baseline.GetWingsorisedStats().variance -
                                      2 * Statistics< tDataType, tSampleType, isSample>::CalculateCovariance( wsampleVec, wsampleAvg,
-                                             wbaselineVec, wbaselineAvg );
+                                                                                                             wbaselineVec, wbaselineAvg );
 
                 mWinsorisedStats.variance = wmeanVar / wsampleVec.size();
 
                 mWinsorisedStats.standardDeviation = Statistics< tDataType, tSampleType, isSample>::CalculateStandardDeviation(
-                        mWinsorisedStats.variance );
+                                                         mWinsorisedStats.variance );
             }
         }
 

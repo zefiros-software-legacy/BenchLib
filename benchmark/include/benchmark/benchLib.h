@@ -40,11 +40,11 @@
 #include "benchmark/group.h"
 #include "benchmark/timer.h"
 
-#include <unordered_map>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <limits>
+#include <map>
 
 // Silly silly msvc...
 #undef max
@@ -171,7 +171,7 @@ namespace BenchLib
 
     private:
 
-        std::unordered_map< std::string, Group > mGroups;
+        std::map< std::string, Group > mGroups;
 
         char **mCmdBegin;
         char **mCmdEnd;

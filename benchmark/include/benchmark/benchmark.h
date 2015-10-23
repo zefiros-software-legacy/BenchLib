@@ -411,7 +411,8 @@ namespace BenchLib
             Memory::GetInstance().EndProfile( samples, mCurrent.GetMemoryLeaks() );
 
             mCurrent.GetMemorySamples().SetSamples( samples );
-            mCurrent.GetMemoryCorrected().SetSamplesForCorrection( mCurrent.GetMemorySamples(), mCurrent.GetMemoryBaseline() );
+            mCurrent.GetMemoryCorrected().SetSamplesForCorrection( mCurrent.GetMemorySamples(), mCurrent.GetMemoryBaseline(),
+                                                                   mCurrent.GetOperationCount() );
         }
 
         void RunTime()
@@ -459,7 +460,8 @@ namespace BenchLib
             mCurrent.GetTimeBaseline().SetSamples( baseline );
             mCurrent.GetTimeSamples().SetSamples( samples );
 
-            mCurrent.GetTimeCorrected().SetSamplesForCorrection( mCurrent.GetTimeSamples(), mCurrent.GetTimeBaseline() );
+            mCurrent.GetTimeCorrected().SetSamplesForCorrection( mCurrent.GetTimeSamples(), mCurrent.GetTimeBaseline(),
+                                                                 mCurrent.GetOperationCount() );
         }
 
         void RunMemoryBaseline()

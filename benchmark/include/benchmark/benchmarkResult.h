@@ -153,7 +153,7 @@ namespace BenchLib
 
                 if ( !reader.HasMember( "timeCorrected" ) )
                 {
-                    mTimeCorrected.SetSamplesForCorrection( mTimeSamples, mTimeBaseline );
+                    mTimeCorrected.SetSamplesForCorrection( mTimeSamples, mTimeBaseline, mOperationCount );
                 }
                 else
                 {
