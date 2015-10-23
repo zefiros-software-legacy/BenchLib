@@ -51,13 +51,13 @@ namespace BenchLib
             if ( mCompleted )
             {
                 writer.String( "operationCount" );
-                writer.Uint( mOperationCount );
+                writer.Uint( ( uint32_t )mOperationCount );
 
                 writer.String( "sampleCount" );
-                writer.Uint( mSampleCount );
+                writer.Uint( ( uint32_t )mSampleCount );
 
                 writer.String( "regression" );
-                writer.Uint( mRegression );
+                writer.Uint( ( uint32_t )mRegression );
 
 #ifdef _WIN32
 #   pragma warning(push)
