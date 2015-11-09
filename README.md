@@ -1,14 +1,14 @@
 # BenchLib
-BencLib is an easy to use statistically correct micro benchmarking tool to help improve performance in your code.
+BenchLib is an easy to use statistically correct micro benchmarking tool to help improve performance in your code.
 
 ![Screen Shot](docs/results.png)
 
 ## Features
 * Reliable measurements: We measure framework noise, to improve the benchmarking of the actual code.
-* Measures the area of interrest only: Does not measure startup and finalisation costs.
+* Measures the area of interest only: Does not measure startup and finalisation costs.
 * Easy to use: The library is completely header only, and does not require extra compile steps nor does it take over
   your classes before you can use it. It works like a google test project.
-* Cross platform: Designed to only use c++11, with no external dependecies.
+* Cross platform: Designed to only use c++11, with no external dependencies.
 * Regression tests: Catch improvements and decreasing performance of functions early on.
 * Profiles memory usage and can detect memory leaks.
 
