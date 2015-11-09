@@ -152,7 +152,7 @@ When a bug is found please insert it in the issue tracker, so we can resolve it 
 * Koen Visscher <koen.visscher@zefiros.eu>
 
 ## Used By
-We are interrested to find out what projects use BenchLib. We would love it to include your projects here, 
+We are interested  to find out what projects use BenchLib. We would love it to include your projects here, 
 just shoot us a mail. :)
  
 * [SerLib](https://github.com/Zefiros-Software/SerLib)
