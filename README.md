@@ -14,7 +14,7 @@ BenchLib is an easy to use statistically correct micro benchmarking tool to help
 
 ## Installation
 The whole library is header only, so for usage in your own code you should clone the repository. And add `benchmark/include/` as include path.
-After this you can use the include `#include "benchmark/benchmark.h"` in your code to start using the library.
+After this you can use the include `#include "benchmark/benchLib.h"` in your code to start using the library.
 
 ## Usage
 
