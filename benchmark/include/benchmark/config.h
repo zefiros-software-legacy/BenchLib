@@ -35,7 +35,7 @@ namespace BenchLib
 #define BENCHLIB_VIEWER_VAR "benchmarkData"
 #define BENCHLIB_MIN_MS_PER_BENCH_UNIT 10
 
-    struct Config
+    static struct Config
     {
         std::size_t microMaxHistory;
         std::size_t minMsPerBenchUnit;
@@ -64,10 +64,10 @@ namespace BenchLib
         writer.StartObject();
 
         writer.String( "microMaxHistory" );
-        writer.Uint( config.microMaxHistory );
+        writer.Uint( static_cast<uint32_t>( config.microMaxHistory ) );
 
         writer.String( "minMsPerBenchUnit" );
-        writer.Uint( config.minMsPerBenchUnit );
+        writer.Uint( static_cast<uint32_t>( config.minMsPerBenchUnit ) );
 
         writer.String( "alpha" );
         writer.Double( config.alpha );

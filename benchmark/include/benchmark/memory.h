@@ -132,7 +132,7 @@ namespace BenchLib
         writer.Int64( leak.size );
 
         writer.String( "line" );
-        writer.Uint( leak.line );
+        writer.Uint( static_cast<uint32_t>(leak.line) );
 
         writer.EndObject();
     }

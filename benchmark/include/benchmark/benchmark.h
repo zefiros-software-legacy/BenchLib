@@ -104,7 +104,7 @@ namespace BenchLib
             writer.String( GetName().c_str() );
 
             writer.String( "current" );
-            mCurrent.Serialise<tWriter >( writer );
+            mCurrent.Serialise< tWriter >( writer );
 
             writer.String( "history" );
             writer.StartArray();
