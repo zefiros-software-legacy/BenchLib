@@ -45,7 +45,7 @@ Since the simple variant of micro benchmarking measures everything in the code b
 wherein we can filter out the startup and finalise costs per benchmark:
 
 ```C++
-MICRO( string <benchmark-group>, string <benchmark-name>, size_t <sample-count>, bool <memoryProfiling>,
+EXTMICRO( string <benchmark-group>, string <benchmark-name>, size_t <sample-count>, bool <memoryProfiling>,
 {
 	// member declarations
 	
