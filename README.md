@@ -133,8 +133,7 @@ To enable regressions, we need to store and read old benchmark results. We have 
 * CLI filter options.
 
 ## Why BenchLib?
-We wanted an easy to use, non invasive serialisation library. Unfortunately no library exists that did implement
-our requirements.
+We wanted an easy to use, statistically correct micro benchmarking tool.
 
 ## Bugs
 When a bug is found please insert it in the issue tracker, so we can resolve it as quickly as we can.
