@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014  Koen Visscher, Mick van Duijn and Paul Visscher
+ * Copyright (c) 2016  Koen Visscher, Mick van Duijn and Paul Visscher
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #pragma once
 #ifndef __BENCHLIB__MEMORY_H__
 #define __BENCHLIB__MEMORY_H__
@@ -132,7 +131,7 @@ namespace BenchLib
         writer.Int64( leak.size );
 
         writer.String( "line" );
-        writer.Uint( static_cast<uint32_t>(leak.line) );
+        writer.Uint( static_cast<uint32_t>( leak.line ) );
 
         writer.EndObject();
     }
@@ -146,7 +145,7 @@ namespace BenchLib
     }
 }
 
-#ifndef BENCHLIB_DISABLE_MEMPROFILE
+#ifdef BENCHLIB_ENABLE_MEMPROFILE
 
 inline void *operator new( std::size_t size, const char *file, std::size_t line )
 {
@@ -155,7 +154,7 @@ inline void *operator new( std::size_t size, const char *file, std::size_t line 
     return ptr;
 }
 
-static inline void *operator new[]( std::size_t size, const char *file, std::size_t line )
+inline void *operator new[]( std::size_t size, const char *file, std::size_t line )
 {
     return operator new( size, file, line );
 }
@@ -165,7 +164,7 @@ inline void *operator new( std::size_t size )
     return malloc( size );
 }
 
-static inline void operator delete( void *ptr, const char *, std::size_t )
+inline void operator delete( void *ptr, const char *, std::size_t )
 {
     BenchLib::Memory::GetInstance().RemoveTrace( ptr );
     free( ptr );

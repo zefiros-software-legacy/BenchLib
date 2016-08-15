@@ -1,0 +1,16 @@
+{
+    "name": "Zefiros-Software/BenchLib-Dev",
+    "modules": [
+        "Zefiros-Software/Zefiros-Defaults"
+    ],
+    "requires": [
+        {
+            "name": "Zefiros-Software/BenchLib",
+            "version": "@head"
+        },
+        {
+            "name": "Zefiros-Software/GoogleTest",
+            "version": "@head"
+        }
+    ]
+}

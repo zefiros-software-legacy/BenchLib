@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014  Koen Visscher, Mick van Duijn and Paul Visscher
+ * Copyright (c) 2016  Koen Visscher, Mick van Duijn and Paul Visscher
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #include "benchmark/benchLib.h"
 
 #include <chrono>
@@ -89,7 +88,7 @@ int main( int argc, char *argv[] )
 
     int32_t result = BenchLib::RunAll( argc, argv );
 
-    system( "pause" );
+    //system( "pause" );
 
     return result;
 }

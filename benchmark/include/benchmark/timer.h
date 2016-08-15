@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014  Koen Visscher, Mick van Duijn and Paul Visscher
+ * Copyright (c) 2016  Koen Visscher, Mick van Duijn and Paul Visscher
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ namespace BenchLib
 
     template< typename tUnit = MilliSeconds>
     struct Timer
-    { 
+    {
 
         static tUnit GetDuration( TimePoint start )
         {

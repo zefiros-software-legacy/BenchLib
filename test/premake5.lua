@@ -24,8 +24,14 @@
 
 local zefiros = require( "Zefiros-Software/Zefiros-Defaults", "@head" )
 
-workspace "BenchLib"
+workspace "BenchLib-ZPM"
 
-	zefiros.setDefaults( "benchmark", {
+	zefiros.setTestZPMDefaults( "benchmark", {
         mayLink = false
     } )
+    
+	project "benchmark-zpm-test"
+
+		zpm.uses {
+            "Zefiros-Software/BenchLib"
+        }
