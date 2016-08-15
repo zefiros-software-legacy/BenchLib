@@ -18,7 +18,24 @@ Windows     | [![Build status](https://ci.appveyor.com/api/projects/status/5rrnc
 * Regression tests: Catch improvements and decreasing performance of functions early on.
 * Profiles memory usage and can detect memory leaks.
 
-## Installation
+# [ZPM](zpm.zefiros.eu) Installation
+
+In `.package.json`
+```json
+"requires": [
+		{
+			"name": "Zefiros-Software/BenchLib",
+			"version": "^1.0.0"
+		}
+]
+```
+
+In `premake5.lua`
+```lua
+zpm.uses "Zefiros-Software/BenchLib"
+```
+
+## Manual Installation
 The whole library is header only, so for usage in your own code you should clone the repository. And add `benchmark/include/` as include path.
 After this you can use the include `#include "benchmark/benchLib.h"` in your code to start using the library.
 
