@@ -38,10 +38,10 @@ MICRO( Test, Test2, 200, true )
     std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
 }
 
-MICRO( Test, Fail, 200, true )
-{
-    throw "";
-}
+//MICRO( Test, Fail, 200, true )
+//{
+//    throw "";
+//}
 
 MICRO( Test2, Test1, 200, true )
 {
