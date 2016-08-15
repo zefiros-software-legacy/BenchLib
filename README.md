@@ -3,6 +3,12 @@ BenchLib is an easy to use statistically correct micro benchmarking tool to help
 
 ![Screen Shot](docs/results.png)
 
+# Status
+OS          | Status
+----------- | -------
+Linux & OSX | [![Build Status](https://travis-ci.org/Zefiros-Software/SerLib.svg?branch=master)](https://travis-ci.org/Zefiros-Software/SerLib)
+Windows     | [![Build status](https://ci.appveyor.com/api/projects/status/brthol35tgeon6wu?svg=true)](https://ci.appveyor.com/project/PaulVisscher/serlib)
+
 ## Features
 * Reliable measurements: We measure framework noise, to improve the benchmarking of the actual code.
 * Measures the area of interest only: Does not measure startup and finalisation costs.
