@@ -6,8 +6,10 @@ BenchLib is an easy to use statistically correct micro benchmarking tool to help
 # Status
 OS          | Status
 ----------- | -------
-Linux & OSX | [![Build Status](https://travis-ci.org/Zefiros-Software/SerLib.svg?branch=master)](https://travis-ci.org/Zefiros-Software/SerLib)
-Windows     | [![Build status](https://ci.appveyor.com/api/projects/status/brthol35tgeon6wu?svg=true)](https://ci.appveyor.com/project/PaulVisscher/serlib)
+Linux & OSX | [![Build Status](https://travis-ci.org/Zefiros-Software/BenchLib.svg?branch=master)](https://travis-ci.org/Zefiros-Software/BenchLib)
+Windows     | [![Build status](https://ci.appveyor.com/api/projects/status/5rrncqjyn1u2pjkt?svg=true)](https://ci.appveyor.com/project/PaulVisscher/benchlib)
+
+
 
 ## Features
 * Reliable measurements: We measure framework noise, to improve the benchmarking of the actual code.
