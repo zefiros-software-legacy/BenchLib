@@ -1,8 +1,7 @@
 
 project "BenchLib"
 
-    filter { "action:not xcode4" }
-            kind "Utility"
+    kind "Utility"
 
     filter { "action:xcode4" }
             kind "StaticLib"
