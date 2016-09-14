@@ -7,6 +7,8 @@ project "BenchLib"
     filter { "action:xcode4" }
             kind "StaticLib"
 
+    filter {}
+
     if zpm.option( "ProfileMemory" ) then
         zpm.export [[
             defines "BENCHLIB_ENABLE_MEMPROFILE"
