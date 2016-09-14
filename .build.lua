@@ -1,12 +1,16 @@
 
 project "BenchLib"
 
-    kind "Utility"
+    filter "platforms:Windows"
+        kind "Utility"
 
-    if _ACTION == "xcode4" then
-            kind "StaticLib"
+    filter "platforms:Unix"
+        kind "StaticLib"
 
-    end
+    filter "platforms:Mac"
+        kind "StaticLib"
+
+    filter {}
 
     if zpm.option( "ProfileMemory" ) then
         zpm.export [[
