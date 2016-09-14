@@ -3,10 +3,10 @@ project "BenchLib"
 
     kind "Utility"
 
-    filter { "action:xcode4" }
+    if _ACTION == "xcode4" then
             kind "StaticLib"
 
-    filter {}
+    end
 
     if zpm.option( "ProfileMemory" ) then
         zpm.export [[
