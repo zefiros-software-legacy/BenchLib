@@ -1,29 +1,32 @@
+#!/bin/bash
 set -e
 
-premake5 install-package --allow-install --allow-module
-premake5 gmake
-cd benchmark
-make config=debug_x86
-make config=debug_x86_64
-make config=release_x86
-make config=release_x86_64
-#make config=coverage_x86
-#make config=coverage_x86_64
+if [ "$TYPE" == "zpm" ]; then
+    cd test
+    
+    zpm install-package --allow-install --allow-module
+    zpm gmake --allow-install
 
-cd ../test/
+    cd zpm/
+    make
+    cd ../../
 
-premake5 gmake
+    test/bin/x86/benchmark-zpm-test
 
-cd zpm/
-make
-cd ../../
+else
+    zpm install-package --allow-install --allow-module
+    zpm gmake --allow-install
+    cd benchmark
+    make config=${TYPE}_${ARCH}
+    cd ../
 
-bin/x86/benchmark-test
-bin/x86/benchmark-testd
-#bin/x86/benchmark-testcd
 
-bin/x86_64/benchmark-test
-bin/x86_64/benchmark-testd
-#bin/x86_64/benchmark-testcd
+    if [ "$TYPE" == "debug" ]; then
+        bin/${ARCH}/benchmark-testd
 
-test/bin/x86/benchmark-zpm-test
+    elif [ "$TYPE" == "coverage" ]; then
+        ./benchmark-testcd
+    else
+        bin/${ARCH}/benchmark-test
+    fi
+fi

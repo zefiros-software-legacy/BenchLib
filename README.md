@@ -1,5 +1,8 @@
 # BenchLib
-BenchLib is an easy to use statistically correct micro benchmarking tool to help improve performance in your code.
+BenchLib is an easy to use  micro benchmarking tool to help improve performance in your code.
+
+# DEPRICATED!!
+This repo isn't updated anymore and you should use [Google Benchmark](https://github.com/Zefiros-Software/GoogleBenchmark) instead.
 
 ![Screen Shot](docs/results.png)
 
@@ -182,7 +185,7 @@ just shoot us a mail. :)
 This project is licensed under the MIT license.
 
 ```
-Copyright (c) 2016 Mick van Duijn, Koen Visscher and Paul Visscher
+Copyright (c) 2017 Zefiros Software.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
