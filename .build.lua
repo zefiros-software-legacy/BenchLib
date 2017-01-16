@@ -1,7 +1,7 @@
 
 project "BenchLib"
 
-    kind "Utility"
+    kind "StaticLib"
 
     if zpm.option( "ProfileMemory" ) then
         zpm.export [[
