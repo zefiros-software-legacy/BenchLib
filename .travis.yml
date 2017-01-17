@@ -3,7 +3,6 @@ language: generic
 matrix:
     include:
         # Use generic language for osx
-        # disabled due to premake bug
         - os: osx
           osx_image: xcode8
           language: generic    
@@ -53,3 +52,6 @@ script:
     - bash script/travis-build.sh
 after_success:
   - if [[ "$TRAVIS_OS_NAME" == "linux" && "$TYPE" = "coverage" ]]; then codecov; fi    
+notifications:
+    slack:
+        secure: "bo+mACbMMnhJjLcK2iS5QHdnluNJNR9iDidAC3pobDE58u/gDYGXcHR1ljRvsjz6tKimOpZzTlUxdYXes5uNVPSnpQePrwKyrL7Nq+IYaH7+eC7Mu03dCBhLGG/lLk7qgbsGcUHxL116S+KmDYrXsFYs/7dYVHWctvx3POvuH9dTspg+HADt/N4U1RMZniUrHAXAtl5Ijt5F5+LdWoMbRoTvI4v/1TyGSRekdPhTl3frIuc9xP80uIWfOc18N+bIh7iw8aMQjKYmmrktd3xSExP59rOcNWuTzilTmc0jhS9kFpiyhm95hv1WyQ2XLWsq/FmSdBEzE97AiGbA9H/2z493kPyJARhr4f0XHX4stIkSwggBf+6K+v1cNmrZEOqmiLoL5Z8BQf4Ywz1fPqGzR8QeGinyoo/nMMRRijOadqdsWwCa8JhYT1h8CijuPOBWy9TzmFHmn+pkQ3H1GkE7+KaL0p/6R+wXFqyUCTcKziihq5ZpU7Q2ACemUAHIAGkdtnss7VIit2frZx0M9AdGPI3JghGj1ZHgSXBgMtYQKj3FMhp23YtMpV10/R7VcWsQnBGr2unf7GTz0P1dC86fSKeruYVpJEoDBmyJTJAeSdxAoR2sY4TwSRUonMUri0bF+MMzN/CPquouzigkK9zNt9oas4wCkxSxCQPV+TAZEnc="
